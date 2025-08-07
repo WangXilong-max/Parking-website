@@ -416,3 +416,12 @@ export class ParkingService {
     );
   }
 }
+
+// 创建服务实例
+const parkingService = new ParkingService();
+
+// 导出便捷函数
+export const getAllParkingSpots = (filters, limit, offset) => parkingService.getParkingSpots(filters, limit, offset);
+export const forceRefreshData = () => parkingService.forceRefreshData();
+export const searchParkingSpots = (searchTerm, limit) => parkingService.searchParkingSpots(searchTerm, limit);
+export const getParkingSpotById = (id) => parkingService.getParkingSpotById(id);

@@ -1,4 +1,8 @@
 # PowerShell启动脚本
+# 设置UTF-8编码以避免中文乱码
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 > $null
+
 Write-Host "🚀 启动墨尔本停车地图开发环境..." -ForegroundColor Green
 Write-Host ""
 
