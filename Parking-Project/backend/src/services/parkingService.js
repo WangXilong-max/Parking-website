@@ -1,11 +1,11 @@
-// 内存缓存对象 (简单版本，生产环境建议使用Redis)
+// Memory cache object (simple version, Redis recommended for production)
 let memoryCache = {
   data: null,
   timestamp: null,
-  ttl: 5 * 60 * 1000 // 5分钟TTL
+  ttl: 5 * 60 * 1000 // 5 minutes TTL
 };
 
-// 墨尔本API配置
+// Melbourne API configuration
 const MELBOURNE_APIS = {
   endpoints: [
     'https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets/on-street-parking-bay-sensors/records?limit=10000&timezone=Australia%2FMelbourne&select=*',
@@ -17,26 +17,26 @@ const MELBOURNE_APIS = {
 export class ParkingService {
   constructor() {
     this.cacheKey = 'parking:spots:all';
-    this.cacheTTL = 5 * 60 * 1000; // 5分钟缓存
+    this.cacheTTL = 5 * 60 * 1000; // 5 minutes cache
   }
 
-  // 获取停车位数据 (优先从缓存)
+  // Get parking spot data (prioritize from cache)
   async getParkingSpots(filters = {}, limit = 1000, offset = 0) {
     try {
-      console.log('📦 检查内存缓存...');
+      console.log('📦 Checking memory cache...');
       
-      // 检查内存缓存
+      // Check memory cache
       const now = Date.now();
       if (memoryCache.data && 
           memoryCache.timestamp && 
           (now - memoryCache.timestamp) < memoryCache.ttl) {
         
-        console.log(`✅ 命中内存缓存，数据量: ${memoryCache.data.length}`);
+        console.log(`✅ Memory cache hit, data count: ${memoryCache.data.length}`);
         
-        // 应用过滤器
+        // Apply filters
         let filteredData = this.applyFilters(memoryCache.data, filters);
         
-        // 分页
+        // Pagination
         const total = filteredData.length;
         const spots = filteredData.slice(offset, offset + limit);
         
@@ -48,22 +48,22 @@ export class ParkingService {
         };
       }
       
-      console.log('⚠️ 缓存过期或无数据，从API获取...');
+      console.log('⚠️ Cache expired or no data, fetching from API...');
       
-      // 从API获取新数据
+      // Fetch new data from API
       const freshData = await this.syncFromAPI();
       
-      // 更新缓存
+      // Update cache
       memoryCache = {
         data: freshData,
         timestamp: now,
         ttl: this.cacheTTL
       };
       
-      // 应用过滤器
+      // Apply filters
       let filteredData = this.applyFilters(freshData, filters);
       
-      // 分页
+      // Pagination
       const total = filteredData.length;
       const spots = filteredData.slice(offset, offset + limit);
       
@@ -75,11 +75,11 @@ export class ParkingService {
       };
       
     } catch (error) {
-      console.error('❌ 获取停车数据失败:', error);
+      console.error('❌ Failed to get parking data:', error);
       
-      // 如果有旧缓存数据，返回旧数据而不是失败
+      // If there's old cache data, return old data instead of failing
       if (memoryCache.data && memoryCache.data.length > 0) {
-        console.log('⚠️ 使用过期缓存数据作为降级方案');
+        console.log('⚠️ Using expired cache data as fallback solution');
         
         let filteredData = this.applyFilters(memoryCache.data, filters);
         const total = filteredData.length;
@@ -90,7 +90,7 @@ export class ParkingService {
           total,
           cached: true,
           lastUpdated: new Date(memoryCache.timestamp).toISOString(),
-          warning: '使用缓存数据，可能不是最新的'
+          warning: 'Using cached data, may not be the latest'
         };
       }
       

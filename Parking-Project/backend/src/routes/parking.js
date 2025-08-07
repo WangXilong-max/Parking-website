@@ -3,16 +3,16 @@ import { getAllParkingSpots, forceRefreshData } from '../services/parkingService
 
 const router = express.Router();
 
-// 获取所有停车位数据
+// Get all parking spot data
 router.get('/', async (req, res) => {
   try {
     const startTime = Date.now();
-    console.log('📡 API请求: 获取停车位数据');
+    console.log('📡 API request: Get parking spot data');
     
     const result = await getAllParkingSpots();
     const duration = Date.now() - startTime;
     
-    console.log(`✅ 返回 ${result.spots.length} 个停车位, 耗时: ${duration}ms`);
+    console.log(`✅ Returned ${result.spots.length} parking spots, duration: ${duration}ms`);
     
     res.json({
       success: true,
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ 获取停车数据失败:', error);
+    console.error('❌ Failed to get parking data:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -34,10 +34,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 强制刷新数据
+// Force refresh data
 router.post('/refresh', async (req, res) => {
   try {
-    console.log('🔄 API请求: 强制刷新停车数据');
+    console.log('🔄 API request: Force refresh parking data');
     const startTime = Date.now();
     
     const result = await forceRefreshData();
@@ -45,7 +45,7 @@ router.post('/refresh', async (req, res) => {
     
     res.json({
       success: true,
-      message: '数据刷新成功',
+      message: 'Data refresh successful',
       data: {
         updated: result.updated,
         total: result.total,
@@ -54,7 +54,7 @@ router.post('/refresh', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ 刷新数据失败:', error);
+    console.error('❌ Failed to refresh data:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -63,7 +63,7 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// 健康检查 - 获取缓存统计信息
+// Health check - get cache statistics
 router.get('/status', async (req, res) => {
   try {
     const result = await getAllParkingSpots();

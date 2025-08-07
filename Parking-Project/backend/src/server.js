@@ -5,10 +5,10 @@ import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
 
-// 导入路由
+// Import routes
 import parkingRoutes from './routes/parking.js';
 
-// 导入服务
+// Import services
 import { startParkingDataSync } from './services/parkingSync.js';
 
 dotenv.config();
@@ -16,12 +16,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 中间件配置
+// Middleware configuration
 app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
-    // 允许来自localhost的任何端口，或者没有origin的请求（如Postman）
+    // Allow requests from any localhost port, or requests without origin (like Postman)
     if (!origin || origin.startsWith('http://localhost:')) {
       callback(null, true);
     } else {
@@ -34,12 +34,12 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// 简单的速率限制中间件
+// Simple rate limiting middleware
 const requestCounts = new Map();
 const simpleRateLimit = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15分钟
+  const windowMs = 15 * 60 * 1000; // 15 minutes
   const maxRequests = 1000;
 
   if (!requestCounts.has(ip)) {
@@ -57,8 +57,8 @@ const simpleRateLimit = (req, res, next) => {
 
   if (userRequests.count >= maxRequests) {
     return res.status(429).json({
-      error: '请求过于频繁',
-      message: '请稍后再试'
+      error: 'Too many requests',
+      message: 'Please try again later'
     });
   }
 
@@ -68,7 +68,7 @@ const simpleRateLimit = (req, res, next) => {
 
 app.use('/api', simpleRateLimit);
 
-// 健康检查端点
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -80,7 +80,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 根路径
+// Root path
 app.get('/', (req, res) => {
   res.json({
     message: '🅿️ Melbourne Parking Backend API',
@@ -92,7 +92,7 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       users: '/api/users'
     },
-    docs: 'API正在运行中',
+    docs: 'API is running',
     timestamp: new Date().toISOString()
   });
 });
@@ -100,12 +100,12 @@ app.get('/', (req, res) => {
 // API路由
 app.use('/api/parking', parkingRoutes);
 
-// 全局错误处理
+// Global error handling
 app.use((err, req, res, next) => {
-  console.error('❌ API错误:', err);
+  console.error('❌ API error:', err);
   
   const statusCode = err.status || err.statusCode || 500;
-  const message = err.message || '服务器内部错误';
+  const message = err.message || 'Internal server error';
   
   res.status(statusCode).json({
     success: false,
@@ -118,70 +118,70 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404处理
+// 404 handling
 app.use('*', (req, res) => {
   res.status(404).json({ 
     success: false,
-    error: '接口不存在',
+    error: 'Endpoint not found',
     path: req.originalUrl,
     method: req.method,
     timestamp: new Date().toISOString()
   });
 });
 
-// 启动服务器
+// Start server
 async function startServer() {
   try {
-    console.log('🚀 正在启动 Melbourne Parking Backend...');
+    console.log('🚀 Starting Melbourne Parking Backend...');
     
-    // 启动停车数据同步服务
-    console.log('⏰ 启动数据同步服务...');
+    // Start parking data sync service
+    console.log('⏰ Starting data sync service...');
     startParkingDataSync();
     
-    // 启动HTTP服务器
+    // Start HTTP server
     app.listen(PORT, () => {
       console.log(`
 ┌─────────────────────────────────────────┐
 │  🅿️  Melbourne Parking Backend API      │
 ├─────────────────────────────────────────┤
-│  🌐 服务地址: http://localhost:${PORT}     │
-│  📚 API根路径: http://localhost:${PORT}/     │
-│  🏥 健康检查: http://localhost:${PORT}/health │
-│  🅿️ 停车API: http://localhost:${PORT}/api/parking │
-│  ⏰ 环境: ${process.env.NODE_ENV || 'development'}                 │
-│  📊 状态: 运行中                        │
+│  🌐 Service URL: http://localhost:${PORT}     │
+│  📚 API Root: http://localhost:${PORT}/     │
+│  🏥 Health Check: http://localhost:${PORT}/health │
+│  🅿️ Parking API: http://localhost:${PORT}/api/parking │
+│  ⏰ Environment: ${process.env.NODE_ENV || 'development'}                 │
+│  📊 Status: Running                        │
 └─────────────────────────────────────────┘
 
-🔥 服务器启动成功！
-📡 正在同步停车数据...
+🔥 Server started successfully!
+📡 Syncing parking data...
       `);
     });
     
   } catch (error) {
-    console.error('❌ 服务器启动失败:', error);
+    console.error('❌ Server startup failed:', error);
     process.exit(1);
   }
 }
 
-// 优雅关闭
+// Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('👋 收到SIGTERM信号，正在优雅关闭...');
+  console.log('👋 Received SIGTERM signal, gracefully shutting down...');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('👋 收到SIGINT信号，正在优雅关闭...');
+  console.log('👋 Received SIGINT signal, gracefully shutting down...');
   process.exit(0);
 });
 
-// 捕获未处理的异常
+// Catch unhandled exceptions
 process.on('uncaughtException', (err) => {
-  console.error('🚨 未捕获的异常:', err);
+  console.error('🚨 Uncaught exception:', err);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('🚨 未处理的Promise拒绝:', reason);
+  console.error('🚨 Unhandled Promise rejection:', reason);
   process.exit(1);
 });
 

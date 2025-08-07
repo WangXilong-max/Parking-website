@@ -26,9 +26,9 @@ export const MAPBOX_CONFIG = {
   }
 }
 
-// Backend API configuration - 支持多环境部署
+// Backend API configuration - supports multi-environment deployment
 export const BACKEND_CONFIG = {
-  // 自动检测后端URL - 支持环境变量或默认本地
+  // Auto-detect backend URL - supports environment variables or defaults to local
   baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
   
   // API endpoints
@@ -39,7 +39,7 @@ export const BACKEND_CONFIG = {
     health: '/health'
   },
   
-  // 支持的后端环境
+  // Supported backend environments
   environments: {
     local: 'http://localhost:3001',
     staging: 'https://parking-api-staging.railway.app',

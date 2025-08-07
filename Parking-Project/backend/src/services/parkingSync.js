@@ -3,31 +3,31 @@ import { ParkingService } from './parkingService.js';
 
 const parkingService = new ParkingService();
 
-// 启动数据同步服务
+// Start data synchronization service
 export function startParkingDataSync() {
-  console.log('⏰ 启动停车数据定时同步服务...');
+  console.log('⏰ Starting parking data scheduled sync service...');
   
-  // 每5分钟同步一次数据
+  // Sync data every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
     try {
-      console.log(`🔄 [${new Date().toISOString()}] 开始定时同步停车数据...`);
+      console.log(`🔄 [${new Date().toISOString()}] Starting scheduled parking data sync...`);
       const result = await parkingService.forceRefreshData();
-      console.log(`✅ [${new Date().toISOString()}] 定时同步完成，更新 ${result.updated} 条记录`);
+      console.log(`✅ [${new Date().toISOString()}] Scheduled sync completed, updated ${result.updated} records`);
     } catch (error) {
-      console.error(`❌ [${new Date().toISOString()}] 定时同步失败:`, error.message);
+      console.error(`❌ [${new Date().toISOString()}] Scheduled sync failed:`, error.message);
     }
   });
   
-  // 启动时立即执行一次数据同步
+  // Execute data sync immediately on startup
   setTimeout(async () => {
     try {
-      console.log('🚀 启动时首次同步停车数据...');
+      console.log('🚀 Initial sync of parking data on startup...');
       const result = await parkingService.forceRefreshData();
-      console.log(`✅ 首次同步完成，获取到 ${result.updated} 条停车数据`);
+      console.log(`✅ Initial sync completed, retrieved ${result.updated} parking data records`);
     } catch (error) {
-      console.error('❌ 首次同步失败:', error.message);
+      console.error('❌ Initial sync failed:', error.message);
     }
-  }, 2000); // 2秒后执行，给服务器启动时间
+  }, 2000); // Execute after 2 seconds, give server time to start
   
-  console.log('✅ 定时同步服务已启动 (每5分钟执行一次)');
+  console.log('✅ Scheduled sync service started (executes every 5 minutes)');
 }

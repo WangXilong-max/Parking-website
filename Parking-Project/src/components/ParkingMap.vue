@@ -26,7 +26,7 @@
         <div class="info">
           <div class="data-status">
             <span v-if="parkingCount > 0">📍 Total: {{ parkingCount }} | 🟢 Available: {{ availableCount }} | 🔴 Occupied: {{ occupiedCount }}</span>
-            <span v-if="isFiltered" class="filter-status">🔍 显示 {{ searchLocationName }} 300米范围内的停车位</span>
+            <span v-if="isFiltered" class="filter-status">🔍 Showing parking spots within 300m of {{ searchLocationName }}</span>
             <span v-if="parkingCount === 0 && !loading" class="no-data">🔄 Click "Refresh Data" to load parking information</span>
             <span v-if="parkingCount > 0" class="data-source" :class="{ 'real-data': usingRealData, 'mock-data': !usingRealData }">
               {{ dataSource }}
@@ -69,13 +69,13 @@ const dataSource = ref('🔧 Ready to load data')
 let map = null
 let allParkingSpots = []
 let searchMarker = null
-const isFiltered = ref(false) // 新增：是否在过滤状态
-const searchLocationName = ref('') // 改名避免冲突
+const isFiltered = ref(false) // Added: whether in filtered state
+const searchLocationName = ref('') // Renamed to avoid conflicts
 
-// Backend API configuration - 动态获取
+// Backend API configuration - dynamically obtained
 const BACKEND_URL = BACKEND_CONFIG.baseURL
 
-console.log('🌐 连接到后端:', BACKEND_URL)
+console.log('🌐 Connecting to backend:', BACKEND_URL)
 
 onMounted(() => {
   initializeMap()
@@ -101,7 +101,7 @@ const initializeMap = () => {
   map.addControl(new mapboxgl.FullscreenControl())
 
   map.on('load', () => {
-    console.log('地图加载完成 - 请点击刷新按钮加载停车数据')
+    console.log('Map loaded - Please click refresh button to load parking data')
   })
 }
 
@@ -109,7 +109,7 @@ const initializeMap = () => {
 const loadParkingData = async () => {
   if (!map || loading.value) return
   
-  console.log('🔄 从后端API加载停车数据...')
+  console.log('🔄 Loading parking data from backend API...')
   loading.value = true
   parkingCount.value = 0
   availableCount.value = 0
@@ -122,18 +122,18 @@ const loadParkingData = async () => {
     const duration = Date.now() - startTime
         
     if (!response.ok) {
-      throw new Error(`后端API调用失败: ${response.status} ${response.statusText}`)
+      throw new Error(`Backend API call failed: ${response.status} ${response.statusText}`)
     }
         
     const result = await response.json()
-    console.log(`✅ 后端API调用成功! 耗时: ${duration}ms`, result)
+    console.log(`✅ Backend API call successful! Duration: ${duration}ms`, result)
 
     if (!result.success) {
-      throw new Error(result.error || '后端返回错误')
+      throw new Error(result.error || 'Backend returned error')
     }
 
     const parkingSpots = result.data || []
-    console.log(`📊 获取到 ${parkingSpots.length} 个停车位`)
+    console.log(`📊 Retrieved ${parkingSpots.length} parking spots`)
 
     // Convert backend data to GeoJSON format for MapBox
     const geoJsonFeatures = parkingSpots.map(spot => ({
@@ -170,7 +170,7 @@ const loadParkingData = async () => {
     const source = result.meta?.cached ? '💾 Cached Data' : '🌐 Fresh Data'
     dataSource.value = `${source} (${duration}ms)`
 
-    console.log(`📊 数据统计: 可用 ${availableCount.value}, 占用 ${occupiedCount.value}`)
+    console.log(`📊 Data statistics: Available ${availableCount.value}, Occupied ${occupiedCount.value}`)
 
     // Remove existing layer if present
     if (map.getSource('parking-spots')) {
@@ -207,14 +207,14 @@ const loadParkingData = async () => {
     // Add event listeners
     addMapEventListeners()
 
-    console.log('✅ 停车数据加载完成!')
+    console.log('✅ Parking data loading completed!')
 
   } catch (error) {
-    console.error('❌ 加载停车数据失败:', error)
+    console.error('❌ Failed to load parking data:', error)
     dataSource.value = `❌ Error: ${error.message}`
     
     // Show user-friendly error
-    alert(`加载数据失败: ${error.message}\n\n请确保后端服务器运行在 ${BACKEND_URL}`)
+    alert(`Failed to load data: ${error.message}\n\nPlease ensure backend server is running at ${BACKEND_URL}`)
   } finally {
     loading.value = false
   }
@@ -230,7 +230,7 @@ const searchLocation = async () => {
     const query = encodeURIComponent(searchQuery.value.trim())
     const geocodingUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_CONFIG.accessToken}&proximity=144.9631,-37.8136&country=AU&bbox=144.5937,-38.4339,145.5125,-37.5113`
     
-    console.log('🔍 搜索地址:', searchQuery.value)
+    console.log('🔍 Searching address:', searchQuery.value)
     const response = await fetch(geocodingUrl)
     
     if (!response.ok) {
@@ -243,14 +243,14 @@ const searchLocation = async () => {
       const feature = data.features[0]
       const [lng, lat] = feature.center
       
-      console.log('✅ 找到位置:', feature.place_name, '坐标:', [lng, lat])
+      console.log('✅ Location found:', feature.place_name, 'Coordinates:', [lng, lat])
       
-      // 移除旧的搜索标记
+      // Remove old search marker
       if (searchMarker) {
         searchMarker.remove()
       }
       
-      // 添加新的搜索位置标记 - 红色星形标记
+      // Add new search location marker - red star marker
       searchMarker = new mapboxgl.Marker({
         color: '#FF6B6B',
         scale: 1.2
@@ -260,26 +260,26 @@ const searchLocation = async () => {
           new mapboxgl.Popup({ offset: 25 })
             .setHTML(`
               <div class="search-popup">
-                <h3>🎯 搜索位置</h3>
+                <h3>🎯 Search Location</h3>
                 <p><strong>${feature.place_name}</strong></p>
                 <p>📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-                <p><em>在300米范围内搜索停车位</em></p>
+                <p><em>Searching for parking spots within 300m</em></p>
               </div>
             `)
         )
         .addTo(map)
       
-      // 超级放大功能 - 根据地址类型智能缩放
-      let zoomLevel = 18 // 默认超级放大
+      // Super zoom function - intelligent zoom based on address type
+      let zoomLevel = 18 // Default super zoom
       
-      // 根据地址的详细程度调整缩放级别
+      // Adjust zoom level based on address detail level
       const addressText = feature.place_name.toLowerCase()
       if (addressText.includes('street') || addressText.includes('road') || addressText.includes('avenue')) {
-        zoomLevel = 19 // 街道级别 - 超级放大
+        zoomLevel = 19 // Street level - super zoom
       } else if (addressText.includes('suburb') || addressText.includes('vic')) {
-        zoomLevel = 16 // 郊区级别
+        zoomLevel = 16 // Suburb level
       } else if (feature.bbox) {
-        // 如果有边界框，计算最适合的缩放级别
+        // If there's a bounding box, calculate the most suitable zoom level
         const bbox = feature.bbox
         const latDiff = Math.abs(bbox[3] - bbox[1])
         const lngDiff = Math.abs(bbox[2] - bbox[0])
@@ -288,20 +288,20 @@ const searchLocation = async () => {
         if (maxDiff > 0.1) zoomLevel = 13
         else if (maxDiff > 0.05) zoomLevel = 15
         else if (maxDiff > 0.01) zoomLevel = 17
-        else zoomLevel = 19 // 非常具体的位置 - 超级放大
+        else zoomLevel = 19 // Very specific location - super zoom
       }
       
-      console.log(`🎯 超级放大到缩放级别 ${zoomLevel}`)
+      console.log(`🎯 Super zoom to zoom level ${zoomLevel}`)
       
-      // 飞行到搜索位置并超级放大
+      // Fly to search location and super zoom
       map.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
-        duration: 2500, // 稍微慢一点的动画让用户看清楚
+        duration: 2500, // Slightly slower animation to let users see clearly
         essential: true
       })
       
-      // 过滤附近的停车位
+      // Filter nearby parking spots
       filterParkingByLocation(lng, lat, feature.place_name)
       
     } else {
@@ -317,12 +317,12 @@ const searchLocation = async () => {
 
 // Filter parking spots by distance from searched location
 const filterParkingByLocation = (lng, lat, locationName) => {
-  const radiusKm = 0.3  // 🔄 改为300米半径
+  const radiusKm = 0.3  // 🔄 Changed to 300m radius
   
-  console.log(`🎯 开始过滤: 搜索位置 [${lng}, ${lat}], 半径 ${radiusKm}km (${radiusKm * 1000}米)`)
-  console.log(`📊 总停车位数量: ${allParkingSpots.length}`)
+  console.log(`🎯 Starting filter: Search location [${lng}, ${lat}], radius ${radiusKm}km (${radiusKm * 1000}m)`)
+  console.log(`📊 Total parking spots: ${allParkingSpots.length}`)
   
-  // 更新过滤状态
+  // Update filter state
   isFiltered.value = true
   searchLocationName.value = locationName
   
@@ -332,11 +332,11 @@ const filterParkingByLocation = (lng, lat, locationName) => {
     return distance <= radiusKm
   })
   
-  console.log(`✅ 过滤结果: ${filteredSpots.length} 个停车位在 ${radiusKm}km 范围内`)
+  console.log(`✅ Filter result: ${filteredSpots.length} parking spots within ${radiusKm}km range`)
   
-  // 简化的调试信息
+  // Simplified debug info
   if (filteredSpots.length === 0) {
-    console.log(`⚠️ 300米内没有停车位`)
+    console.log(`⚠️ No parking spots within 300m`)
   }
   
   updateParkingLayer(filteredSpots)
@@ -350,23 +350,23 @@ const filterParkingByLocation = (lng, lat, locationName) => {
   availableCount.value = filteredStatusCounts['Available'] || 0
   occupiedCount.value = filteredStatusCounts['Occupied'] || 0
   
-  console.log(`🔍 在 ${locationName} 300米范围内找到 ${filteredSpots.length} 个停车位`)
-  console.log(`📊 可用: ${availableCount.value}, 占用: ${occupiedCount.value}`)
+  console.log(`🔍 Found ${filteredSpots.length} parking spots within 300m of ${locationName}`)
+  console.log(`📊 Available: ${availableCount.value}, Occupied: ${occupiedCount.value}`)
   
-  // 🔧 重要修复：无论是否找到停车位，都要保持搜索位置的标记和放大效果
-  // 不再使用 return 来提前退出
+  // 🔧 Important fix: maintain search location marker and zoom effect regardless of whether parking spots are found
+  // No longer use return to exit early
   if (filteredSpots.length === 0) {
-    console.log('⚠️ 300米范围内没有找到停车位，但保持在搜索位置')
-    // 只是显示提示，但不阻止后续的视图调整
+    console.log('⚠️ No parking spots found within 300m, but staying at search location')
+    // Just show prompt, but don't prevent subsequent view adjustments
     setTimeout(() => {
-      alert(`在 ${locationName} 300米范围内没有找到停车位。地图已放大到搜索位置，你可以手动查看附近区域。`)
+      alert(`No parking spots found within 300m of ${locationName}. Map has been zoomed to search location, you can manually check nearby areas.`)
     }, 1000)
   }
   
-  // 延迟调整视图 - 根据是否有停车位决定如何调整视图
+  // Delayed view adjustment - decide how to adjust view based on whether there are parking spots
   setTimeout(() => {
     if (filteredSpots.length > 0) {
-      // 有停车位时：包含停车位和搜索位置
+      // When there are parking spots: include parking spots and search location
       const coordinates = filteredSpots.map(spot => spot.geometry.coordinates)
       coordinates.push([lng, lat]) // 包含搜索位置
       
@@ -378,7 +378,7 @@ const filterParkingByLocation = (lng, lat, locationName) => {
         [Math.max(...lngs), Math.max(...lats)]
       ]
       
-      // 如果所有点都很接近，保持高缩放级别
+      // If all points are close, maintain high zoom level
       const latRange = Math.max(...lats) - Math.min(...lats)
       const lngRange = Math.max(...lngs) - Math.min(...lngs)
       const maxRange = Math.max(latRange, lngRange)
@@ -392,11 +392,11 @@ const filterParkingByLocation = (lng, lat, locationName) => {
         duration: 2000
       })
     } else {
-      // 没有停车位时：只保持在搜索位置的放大状态
-      // 不做额外的视图调整，让 searchLocation 函数中的 map.flyTo 生效
-      console.log('🎯 保持搜索位置的放大效果')
+      // When there are no parking spots: only maintain zoom state at search location
+      // Don't make additional view adjustments, let map.flyTo in searchLocation function take effect
+      console.log('🎯 Maintaining zoom effect at search location')
     }
-  }, 3000) // 给 searchLocation 中的 flyTo 足够时间完成 (2500ms + 500ms buffer)
+  }, 3000) // Give enough time for flyTo in searchLocation to complete (2500ms + 500ms buffer)
 }
 
 // Calculate distance between two points in kilometers
@@ -459,13 +459,13 @@ const addMapEventListeners = () => {
 
 // Reset view to show all parking spots
 const resetView = () => {
-  // 移除搜索标记
+  // Remove search marker
   if (searchMarker) {
     searchMarker.remove()
     searchMarker = null
   }
   
-  // 重置状态
+  // Reset state
   isFiltered.value = false
   searchLocationName.value = ''
   
@@ -506,7 +506,7 @@ const resetView = () => {
     })
   }
   
-  console.log('🔄 视图已重置，显示所有停车位')
+  console.log('🔄 View has been reset, showing all parking spots')
 }
 </script>
 
