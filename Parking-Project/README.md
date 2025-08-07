@@ -1,50 +1,32 @@
-# Melbourne Parking Map
+Melbourne Parking Map
+An interactive map application showing Melbourne parking information.
 
-一个显示墨尔本停车位信息的交互式地图应用。
+Features
+🗺️ Interactive map based on MapBox
 
-## 功能特性
+🔍 Address search and location positioning
 
-- 🗺️ 基于MapBox的交互式地图
-- 🔍 地址搜索和位置定位
-- 🅿️ 实时停车位数据显示
-- 📍 300米范围内停车位过滤
-- 🎯 搜索位置标记和超级放大
-- 📱 移动端响应式设计
+🅿️ Real-time display of parking spot data
 
-## 快速开始
+📍 Filter parking spots within a 300-meter range
 
-### 前端启动
-```bash
+🎯 Location markers and super zoom on search
+
+📱 Responsive design for mobile
+
+Quick Start
+
+Start Front-end
 npm install
 npm run dev
-```
 
-### 后端启动
-```bash
+Start Back-end
 cd backend
 npm install
 npm start
-```
 
-### 同时启动前后端
-```bash
-# Windows
-start-dev.bat
 
-# PowerShell
-.\start-dev.ps1
-```
-
-## 配置
-
-在根目录创建 `.env` 文件：
-```
-VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
-VITE_BACKEND_URL=http://localhost:3001
-```
-
-## 技术栈
-
-- **前端**: Vue 3 + Vite + MapBox GL JS
-- **后端**: Node.js + Express
-- **数据源**: 墨尔本政府开放数据API
+Tech Stack
+Frontend: Vue 3 + Vite + MapBox GL JS
+Backend: Node.js + Express
+Data Source: Melbourne Government Open Data API
