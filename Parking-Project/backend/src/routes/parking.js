@@ -66,15 +66,15 @@ router.post('/refresh', async (req, res) => {
 // Health check - get cache statistics
 router.get('/status', async (req, res) => {
   try {
-    const result = await getAllParkingSpots();
-    
+    const { total, cached, lastUpdated } = await getAllParkingSpots();
+
     res.json({
       success: true,
       status: 'healthy',
       data: {
-        totalSpots: result.data.length,
-        cached: result.fromCache,
-        lastUpdate: result.lastUpdate,
+        totalSpots: total,
+        cached,
+        lastUpdate: lastUpdated,
         timestamp: new Date().toISOString()
       }
     });
