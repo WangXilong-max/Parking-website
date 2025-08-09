@@ -1,13 +1,13 @@
 <template>
-  <div class="map-container">
+  <div class="map-container" style="position: relative; z-index: 1;">
     <div class="map-header">
       <h2>Melbourne Parking Map</h2>
       <div class="search-container">
         <div class="search-box">
-          <input 
-            v-model="searchQuery" 
+          <input
+            v-model="searchQuery"
             @keyup.enter="searchLocation"
-            type="text" 
+            type="text"
             placeholder="Search for a location in Melbourne..."
             class="search-input"
           >
@@ -39,6 +39,9 @@
             <span class="legend-item">
               <span class="legend-dot occupied"></span>Occupied
             </span>
+            <span class="legend-item">
+              <span class="legend-dot building"></span>Building Parking
+            </span>
           </div>
         </div>
       </div>
@@ -56,6 +59,9 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MAPBOX_CONFIG, BACKEND_CONFIG } from '../config/mapbox.js'
+
+// 建筑物停车场数据
+let buildingParkingData = null
 
 const mapContainer = ref(null)
 const loading = ref(false)
@@ -87,28 +93,111 @@ onUnmounted(() => {
   }
 })
 
-const initializeMap = () => {
-  mapboxgl.accessToken = MAPBOX_CONFIG.accessToken
-  
-  map = new mapboxgl.Map({
-    container: mapContainer.value,
-    style: MAPBOX_CONFIG.styles.streets,
-    center: MAPBOX_CONFIG.melbourne.center,
-    zoom: MAPBOX_CONFIG.melbourne.zoom
+const loadBuildingParkingData = async () => {
+  try {
+    const response = await fetch('/data/building-parking.json')
+    buildingParkingData = await response.json()
+    addBuildingParkingLayer()
+  } catch (error) {
+    console.error('Error loading building parking data:', error)
+  }
+}
+
+const addBuildingParkingLayer = () => {
+  if (!map || !buildingParkingData) return
+
+  // 如果图层已存在，先移除
+  if (map.getLayer('building-parking-points')) {
+    map.removeLayer('building-parking-points')
+  }
+  if (map.getSource('building-parking')) {
+    map.removeSource('building-parking')
+  }
+
+  // 添加数据源
+  map.addSource('building-parking', {
+    type: 'geojson',
+    data: buildingParkingData
   })
 
-  map.addControl(new mapboxgl.NavigationControl())
-  map.addControl(new mapboxgl.FullscreenControl())
+  // 添加图层
+  map.addLayer({
+    id: 'building-parking-points',
+    type: 'circle',
+    source: 'building-parking',
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['get', 'parking_spaces'],
+        0, 5,
+        100, 10,
+        500, 15
+      ],
+      'circle-color': '#4264fb',
+      'circle-opacity': 0.8,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff'
+    }
+  })
 
-  map.on('load', () => {
-    console.log('Map loaded - Please click refresh button to load parking data')
+  // 添加点击事件
+  map.on('click', 'building-parking-points', (e) => {
+    if (!e.features.length) return
+
+    const feature = e.features[0]
+    const coordinates = feature.geometry.coordinates.slice()
+    const properties = feature.properties
+
+    while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+      coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360
+    }
+
+    new mapboxgl.Popup()
+      .setLngLat(coordinates)
+      .setHTML(`
+        <h3>Building Parking Details</h3>
+        <p><strong>Address:</strong> ${properties.building_address}</p>
+        <p><strong>Parking Type:</strong> ${properties.parking_type}</p>
+        <p><strong>Parking Spaces:</strong> ${properties.parking_spaces}</p>
+      `)
+      .addTo(map)
+  })
+
+  // 鼠标悬停效果
+  map.on('mouseenter', 'building-parking-points', () => {
+    map.getCanvas().style.cursor = 'pointer'
+  })
+
+  map.on('mouseleave', 'building-parking-points', () => {
+    map.getCanvas().style.cursor = ''
   })
 }
 
+const initializeMap = () => {
+  mapboxgl.accessToken = MAPBOX_CONFIG.accessToken
+
+  map = new mapboxgl.Map({
+    container: 'map',
+    style: MAPBOX_CONFIG.styles.streets,
+    center: MAPBOX_CONFIG.melbourne.center,
+    zoom: MAPBOX_CONFIG.melbourne.zoom
+  });
+
+  map.addControl(new mapboxgl.NavigationControl());
+  map.addControl(new mapboxgl.FullscreenControl())
+
+  map.on('load', () => {
+    console.log('Map loaded')
+    loadParkingData()
+    loadBuildingParkingData()
+  })
+
+}
 // Load parking data from our backend API
 const loadParkingData = async () => {
   if (!map || loading.value) return
-  
+
   console.log('🔄 Loading parking data from backend API...')
   loading.value = true
   parkingCount.value = 0
@@ -120,11 +209,11 @@ const loadParkingData = async () => {
     const startTime = Date.now()
     const response = await fetch(`${BACKEND_URL}/api/parking`)
     const duration = Date.now() - startTime
-        
+
     if (!response.ok) {
       throw new Error(`Backend API call failed: ${response.status} ${response.statusText}`)
     }
-        
+
     const result = await response.json()
     console.log(`✅ Backend API call successful! Duration: ${duration}ms`, result)
 
@@ -164,7 +253,7 @@ const loadParkingData = async () => {
     parkingCount.value = geoJsonFeatures.length
     availableCount.value = geoJsonFeatures.filter(spot => spot.properties.status === 'Available').length
     occupiedCount.value = geoJsonFeatures.filter(spot => spot.properties.status === 'Occupied').length
-    
+
     // Update data source info
     usingRealData.value = true
     const source = result.meta?.cached ? '💾 Cached Data' : '🌐 Fresh Data'
@@ -212,7 +301,7 @@ const loadParkingData = async () => {
   } catch (error) {
     console.error('❌ Failed to load parking data:', error)
     dataSource.value = `❌ Error: ${error.message}`
-    
+
     // Show user-friendly error
     alert(`Failed to load data: ${error.message}\n\nPlease ensure backend server is running at ${BACKEND_URL}`)
   } finally {
@@ -223,33 +312,33 @@ const loadParkingData = async () => {
 // Enhanced search function with marker and super zoom
 const searchLocation = async () => {
   if (!searchQuery.value.trim() || searching.value) return
-  
+
   searching.value = true
-  
+
   try {
     const query = encodeURIComponent(searchQuery.value.trim())
     const geocodingUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_CONFIG.accessToken}&proximity=144.9631,-37.8136&country=AU&bbox=144.5937,-38.4339,145.5125,-37.5113`
-    
+
     console.log('🔍 Searching address:', searchQuery.value)
     const response = await fetch(geocodingUrl)
-    
+
     if (!response.ok) {
       throw new Error('Geocoding request failed')
     }
-    
+
     const data = await response.json()
-    
+
     if (data.features && data.features.length > 0) {
       const feature = data.features[0]
       const [lng, lat] = feature.center
-      
+
       console.log('✅ Location found:', feature.place_name, 'Coordinates:', [lng, lat])
-      
+
       // Remove old search marker
       if (searchMarker) {
         searchMarker.remove()
       }
-      
+
       // Add new search location marker - red star marker
       searchMarker = new mapboxgl.Marker({
         color: '#FF6B6B',
@@ -268,10 +357,10 @@ const searchLocation = async () => {
             `)
         )
         .addTo(map)
-      
+
       // Super zoom function - intelligent zoom based on address type
       let zoomLevel = 18 // Default super zoom
-      
+
       // Adjust zoom level based on address detail level
       const addressText = feature.place_name.toLowerCase()
       if (addressText.includes('street') || addressText.includes('road') || addressText.includes('avenue')) {
@@ -284,15 +373,15 @@ const searchLocation = async () => {
         const latDiff = Math.abs(bbox[3] - bbox[1])
         const lngDiff = Math.abs(bbox[2] - bbox[0])
         const maxDiff = Math.max(latDiff, lngDiff)
-        
+
         if (maxDiff > 0.1) zoomLevel = 13
         else if (maxDiff > 0.05) zoomLevel = 15
         else if (maxDiff > 0.01) zoomLevel = 17
         else zoomLevel = 19 // Very specific location - super zoom
       }
-      
+
       console.log(`🎯 Super zoom to zoom level ${zoomLevel}`)
-      
+
       // Fly to search location and super zoom
       map.flyTo({
         center: [lng, lat],
@@ -300,10 +389,10 @@ const searchLocation = async () => {
         duration: 2500, // Slightly slower animation to let users see clearly
         essential: true
       })
-      
+
       // Filter nearby parking spots
       filterParkingByLocation(lng, lat, feature.place_name)
-      
+
     } else {
       alert('Location not found. Please try a different search term.')
     }
@@ -318,30 +407,30 @@ const searchLocation = async () => {
 // Filter parking spots by distance from searched location
 const filterParkingByLocation = (lng, lat, locationName) => {
   const radiusKm = 0.3  // 🔄 Changed to 300m radius
-  
+
   console.log(`🎯 Starting filter: Search location [${lng}, ${lat}], radius ${radiusKm}km (${radiusKm * 1000}m)`)
   console.log(`📊 Total parking spots: ${allParkingSpots.length}`)
-  
+
   // Update filter state
   isFiltered.value = true
   searchLocationName.value = locationName
-  
+
   const filteredSpots = allParkingSpots.filter((spot) => {
     const [spotLng, spotLat] = spot.geometry.coordinates
     const distance = calculateDistance(lat, lng, spotLat, spotLng)
     return distance <= radiusKm
   })
-  
+
   console.log(`✅ Filter result: ${filteredSpots.length} parking spots within ${radiusKm}km range`)
-  
+
   // Simplified debug info
   if (filteredSpots.length === 0) {
     console.log(`⚠️ No parking spots within 300m`)
   }
-  
+
   updateParkingLayer(filteredSpots)
   parkingCount.value = filteredSpots.length
-  
+
   const filteredStatusCounts = {}
   filteredSpots.forEach(spot => {
     const status = spot.properties.status
@@ -349,10 +438,10 @@ const filterParkingByLocation = (lng, lat, locationName) => {
   })
   availableCount.value = filteredStatusCounts['Available'] || 0
   occupiedCount.value = filteredStatusCounts['Occupied'] || 0
-  
+
   console.log(`🔍 Found ${filteredSpots.length} parking spots within 300m of ${locationName}`)
   console.log(`📊 Available: ${availableCount.value}, Occupied: ${occupiedCount.value}`)
-  
+
   // 🔧 Important fix: maintain search location marker and zoom effect regardless of whether parking spots are found
   // No longer use return to exit early
   if (filteredSpots.length === 0) {
@@ -362,30 +451,30 @@ const filterParkingByLocation = (lng, lat, locationName) => {
       alert(`No parking spots found within 300m of ${locationName}. Map has been zoomed to search location, you can manually check nearby areas.`)
     }, 1000)
   }
-  
+
   // Delayed view adjustment - decide how to adjust view based on whether there are parking spots
   setTimeout(() => {
     if (filteredSpots.length > 0) {
       // When there are parking spots: include parking spots and search location
       const coordinates = filteredSpots.map(spot => spot.geometry.coordinates)
       coordinates.push([lng, lat]) // 包含搜索位置
-      
+
       const lngs = coordinates.map(coord => coord[0])
       const lats = coordinates.map(coord => coord[1])
-      
+
       const bounds = [
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)]
       ]
-      
+
       // If all points are close, maintain high zoom level
       const latRange = Math.max(...lats) - Math.min(...lats)
       const lngRange = Math.max(...lngs) - Math.min(...lngs)
       const maxRange = Math.max(latRange, lngRange)
-      
+
       const padding = { top: 80, bottom: 80, left: 80, right: 80 }
       const maxZoom = maxRange < 0.01 ? 18 : 17
-      
+
       map.fitBounds(bounds, {
         padding,
         maxZoom,
@@ -428,7 +517,7 @@ const addMapEventListeners = () => {
     const properties = e.features[0].properties
 
     const statusColor = properties.status === 'Available' ? 'green' : 'red'
-    
+
     const popupContent = `
       <div class="parking-popup">
         <h3>${properties.name}</h3>
@@ -464,14 +553,14 @@ const resetView = () => {
     searchMarker.remove()
     searchMarker = null
   }
-  
+
   // Reset state
   isFiltered.value = false
   searchLocationName.value = ''
-  
+
   updateParkingLayer(allParkingSpots)
   parkingCount.value = allParkingSpots.length
-  
+
   const allStatusCounts = {}
   allParkingSpots.forEach(spot => {
     const status = spot.properties.status
@@ -479,20 +568,20 @@ const resetView = () => {
   })
   availableCount.value = allStatusCounts['Available'] || 0
   occupiedCount.value = allStatusCounts['Occupied'] || 0
-  
+
   searchQuery.value = ''
-  
+
   if (allParkingSpots.length > 0) {
     const coordinates = allParkingSpots.map(spot => spot.geometry.coordinates)
-    
+
     const lngs = coordinates.map(coord => coord[0])
     const lats = coordinates.map(coord => coord[1])
-    
+
     const bounds = [
       [Math.min(...lngs), Math.min(...lats)],
       [Math.max(...lngs), Math.max(...lats)]
     ]
-    
+
     map.fitBounds(bounds, {
       padding: { top: 80, bottom: 80, left: 80, right: 80 },
       maxZoom: 15,
@@ -505,7 +594,7 @@ const resetView = () => {
       duration: 1500
     })
   }
-  
+
   console.log('🔄 View has been reset, showing all parking spots')
 }
 </script>
@@ -747,36 +836,36 @@ const resetView = () => {
     padding: 10px;
     gap: 10px;
   }
-  
+
   .map-header h2 {
     font-size: 1.2rem;
     text-align: center;
   }
-  
+
   .search-box {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .search-input {
     width: 100%;
   }
-  
+
   .search-btn, .reset-btn, .refresh-btn {
     width: 100%;
     padding: 12px;
   }
-  
+
   .controls {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  
+
   .info {
     text-align: center;
   }
-  
+
   .legend {
     justify-content: center;
   }
