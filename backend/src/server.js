@@ -35,30 +35,14 @@ app.use(
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-/* ---------- CORS (allow multiple origins via env) ---------- */
+/* ---------- Allowed frontend origins via env ---------- */
 /* FRONTEND_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173" */
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      // allow same-origin / curl / server-to-server (no Origin)
-      if (!origin) return cb(null, true);
-      if (
-        allowedOrigins.some(
-          (o) => origin === o || origin.startsWith('http://localhost:')
-        )
-      )
-        return cb(null, true);
-      return cb(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    credentials: true,
-  })
-);
-
+/* ---------- Body parsers ---------- */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -102,7 +86,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
-/* ---------- Optional API info (moved off "/") ---------- */
+/* ---------- API info (not at "/") ---------- */
 app.get('/api', (_req, res) => {
   res.json({
     message: '🅿️ Melbourne Parking Backend API',
@@ -115,6 +99,18 @@ app.get('/api', (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+/* ---------- CORS (apply ONLY to /api) ---------- */
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // server-to-server, curl, same-origin
+    if (origin.startsWith('http://localhost:')) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+};
+app.use('/api', cors(corsOptions));
 
 /* ---------- API routes ---------- */
 app.use('/api/parking', parkingRoutes);
@@ -160,11 +156,11 @@ async function startServer() {
 ┌─────────────────────────────────────────┐
 │  🅿️  Melbourne Parking Backend API      │
 ├─────────────────────────────────────────┤
-│  🌐 URL: http://0.0.0.0:${PORT}                │
-│  🏥 Health: /health                      │
-│  🅿️ API:    /api/parking                 │
-│  📦 Static:  ${distPath}                 │
-│  ⏰ Env:     ${process.env.NODE_ENV || 'development'}        │
+│  🌐 URL: http://0.0.0.0:${PORT}
+│  🏥 Health: /health
+│  🅿️ API:    /api/parking
+│  📦 Static:  ${distPath}
+│  ⏰ Env:     ${process.env.NODE_ENV || 'development'}
 └─────────────────────────────────────────┘
       `);
     });
