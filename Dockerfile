@@ -1,36 +1,31 @@
 # ---- 1) Build frontend (Vite) ----
 FROM node:20.19.0-alpine AS frontend
 WORKDIR /app
-# copy only root manifests first for better cache
-COPY package*.json ./
-RUN npm install            # use npm ci later when locks are fixed
-# Build-time envs for Vite (Railway usually passes env to build; this is an extra safety net)
+# copy root manifests from subdir for caching
+COPY PARKING-WEBSITE/package*.json ./
+RUN npm ci
+# build-time Vite envs
 ARG VITE_MAPBOX_TOKEN
 ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
-# now copy source and build
-COPY . .
+# copy source and build
+COPY PARKING-WEBSITE ./
 RUN npm run build
 
 # ---- 2) Install backend deps ----
 FROM node:20.19.0-alpine AS backend_deps
 WORKDIR /app/backend
-COPY backend/package*.json ./
-RUN npm install --omit=dev  # use npm ci --omit=dev later when backend lock is clean
+COPY PARKING-WEBSITE/backend/package*.json ./
+RUN npm ci --omit=dev
 
-# ---- 3) Runtime image ----
+# ---- 3) Runtime ----
 FROM node:20.19.0-alpine
 WORKDIR /app
-
-# backend code + node_modules
+# backend source + deps
 COPY --from=backend_deps /app/backend/node_modules ./backend/node_modules
-COPY backend ./backend
-
-# built frontend to /app/dist (served by Express)
+COPY PARKING-WEBSITE/backend ./backend
+# built frontend for serving
 COPY --from=frontend /app/dist ./dist
 
 ENV NODE_ENV=production
-# Railway injects PORT; EXPOSE is for local runs
 EXPOSE 3001
-
-# Start backend (which must serve ../dist and listen on 0.0.0.0:$PORT)
 CMD ["node", "backend/src/server.js"]
