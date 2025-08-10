@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Import routes
 import parkingRoutes from './routes/parking.js';
@@ -13,6 +15,9 @@ import parkingInfoRoutes from './routes/parkingInfo.js';
 import { startParkingDataSync } from './services/parkingSync.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -97,6 +102,16 @@ app.get('/', (req, res) => {
   });
 });
 
+// 服务静态文件 (生产环境)
+if (process.env.NODE_ENV === 'production') {
+  const frontendDistPath = path.join(__dirname, '../../dist');
+  
+  // 服务静态资源
+  app.use(express.static(frontendDistPath));
+  
+  console.log(`📁 Serving static files from: ${frontendDistPath}`);
+}
+
 // API路由
 app.use('/api/parking', parkingRoutes);
 app.use('/api/parking-info', parkingInfoRoutes);
@@ -119,16 +134,24 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handling
-app.use('*', (req, res) => {
+// 404 handling for API routes, serve frontend for all other routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({ 
     success: false,
-    error: 'Endpoint not found',
+    error: 'API endpoint not found',
     path: req.originalUrl,
     method: req.method,
     timestamp: new Date().toISOString()
   });
 });
+
+// Serve frontend for all non-API routes (SPA fallback)
+if (process.env.NODE_ENV === 'production') {
+  app.use('*', (req, res) => {
+    const frontendDistPath = path.join(__dirname, '../../dist');
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Start server
 async function startServer() {
