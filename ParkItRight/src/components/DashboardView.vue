@@ -66,6 +66,7 @@ import {
   Legend
 } from 'chart.js'
 import { Line as LineChart } from 'vue-chartjs'
+import { formatNumber } from '../utils/common.js'
 
 // Register ChartJS components
 ChartJS.register(
@@ -143,11 +144,7 @@ const vehicleChartData = computed(() => ({
   ]
 }))
 
-// Helper Methods
-const formatNumber = (num) => {
-  if (!num) return '0'
-  return new Intl.NumberFormat('en-AU').format(num)
-}
+// formatNumber function moved to utils/common.js
 
 const getChangeClass = (change) => {
   return {

@@ -113,9 +113,7 @@ body {
   background-attachment: fixed;
 }
 
-#app.with-nav {
-  padding-top: 60px;
-}
+/* 移除未使用的CSS类 */
 
 .top-nav {
   position: fixed;

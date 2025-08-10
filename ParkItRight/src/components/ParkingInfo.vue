@@ -104,6 +104,7 @@
 <script setup>
 import { ref } from 'vue'
 import { BACKEND_CONFIG, MAPBOX_CONFIG } from '../config/mapbox.js'
+import { calculateDistance, getDisplayName } from '../utils/common.js'
 
 // 响应式数据
 const destination = ref('')
@@ -111,22 +112,12 @@ const loading = ref(false)
 const searched = ref(false)
 const parkingSpots = ref([])
 
-// 定义事件
+// Define events
 const emit = defineEmits(['navigate', 'showSpotOnMap'])
 
-// 计算距离函数（与Map页面保持一致）
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371 // 地球半径(公里)
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return R * c
-}
+// Distance calculation functions moved to utils/common.js
 
-// 搜索停车位
+// Search parking spots
 const searchParkingSpots = async () => {
   if (!destination.value.trim()) {
     alert('Please enter a destination')
@@ -137,11 +128,11 @@ const searchParkingSpots = async () => {
   searched.value = true
 
   try {
-    // 首先进行地理编码获取搜索位置的坐标
-    let searchLat = -37.8136 // 默认墨尔本坐标
+    // First geocode to get coordinates of search location
+    let searchLat = -37.8136 // Default Melbourne coordinates
     let searchLng = 144.9631
     
-    // 尝试地理编码用户输入的位置
+    // Try to geocode user input location
     try {
       const geocodeResponse = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(destination.value)}.json?access_token=${MAPBOX_CONFIG.accessToken}&country=AU&bbox=144.5,-38.5,145.5,-37.5`)
       
@@ -162,7 +153,7 @@ const searchParkingSpots = async () => {
       console.log(`ParkingInfo: Geocoding error for "${destination.value}":`, error)
     }
 
-    // 获取停车位数据
+    // Get parking spot data
     const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/search`, {
       method: 'POST',
       headers: {
@@ -170,12 +161,12 @@ const searchParkingSpots = async () => {
       },
       body: JSON.stringify({
         location: destination.value,
-        radius: 1000 // 获取更大范围的数据，前端再筛选
+        radius: 1000 // Get larger range data, frontend will filter later
       })
     })
 
     if (!response.ok) {
-      throw new Error('搜索失败')
+      throw new Error('Search failed')
     }
 
     const data = await response.json()
@@ -184,19 +175,19 @@ const searchParkingSpots = async () => {
       console.log('ParkingInfo: Received parking spots:', data.data)
       console.log(`ParkingInfo: Using search coordinates: ${searchLat}, ${searchLng}`)
       
-      // 使用前端距离计算筛选300米范围内的停车位
+      // Use frontend distance calculation to filter spots within 300m
       const nearbySpots = data.data.filter(spot => {
         if (!spot.latitude || !spot.longitude) return false
         
         const distance = calculateDistance(
           searchLat, searchLng,
           parseFloat(spot.latitude), parseFloat(spot.longitude)
-        ) * 1000 // 转换为米
+        ) * 1000 // Convert to meters
         
-        // 更新距离为前端计算的距离
+        // Update distance to frontend calculated distance
         spot.distance = Math.round(distance)
         
-        // 只返回300米范围内且有具体扣费情况的停车位
+        // Only return spots within 300m with specific charging restrictions
         const hasValidRestriction = spot.restriction_display && 
           spot.restriction_display !== 'Unknown' && 
           spot.restriction_display !== ''
@@ -206,19 +197,19 @@ const searchParkingSpots = async () => {
       
       console.log(`ParkingInfo: Found ${nearbySpots.length} spots within 300m with valid restrictions`)
       
-      // 按优惠程度排序（在300米范围内）
+      // Sort by value (within 300m range)
       const restrictionOrder = {
-        '4P': 1,      // 4小时停车 - 最优惠
-        'MP4P': 2,    // 4小时停车
-        '2P': 3,      // 2小时停车
-        'MP2P': 4,    // 2小时停车
-        'MP3P': 5,    // 3小时停车
-        '1P': 6,      // 1小时停车
-        'MP1P': 7,    // 1小时停车
-        'LZ30': 8,    // 30分钟停车
-        'QP': 9,      // 快速停车
-        'SP': 10,     // 特殊停车
-        'PP': 11      // 付费停车
+        '4P': 1,      // 4 hour parking - best value
+        'MP4P': 2,    // 4 hour parking
+        '2P': 3,      // 2 hour parking
+        'MP2P': 4,    // 2 hour parking
+        'MP3P': 5,    // 3 hour parking
+        '1P': 6,      // 1 hour parking
+        'MP1P': 7,    // 1 hour parking
+        'LZ30': 8,    // 30 minute parking
+        'QP': 9,      // Quick parking
+        'SP': 10,     // Special parking
+        'PP': 11      // Paid parking
       }
       
       nearbySpots.sort((a, b) => {
@@ -229,13 +220,13 @@ const searchParkingSpots = async () => {
           return orderA - orderB
         }
         
-        // 如果限制相同，按距离排序
+        // If restrictions are the same, sort by distance
         return a.distance - b.distance
       })
       
       parkingSpots.value = nearbySpots
       
-      // 显示第一个停车位的完整数据结构
+      // Display complete data structure of first parking spot
       if (parkingSpots.value.length > 0) {
         console.log('ParkingInfo: First spot structure:', parkingSpots.value[0])
       }
@@ -244,10 +235,10 @@ const searchParkingSpots = async () => {
     }
 
   } catch (error) {
-    console.error('搜索停车位失败:', error)
-    // API调用失败时显示错误信息
+    console.error('Failed to search parking spots:', error)
+    // Show error message when API call fails
     parkingSpots.value = []
-    alert('搜索失败，请检查网络连接或稍后重试')
+    alert('Search failed, please check network connection or try again later')
   } finally {
     loading.value = false
   }
@@ -255,7 +246,7 @@ const searchParkingSpots = async () => {
 
 
 
-// 获取限制类型样式类
+// Get restriction type style class
 const getRestrictionClass = (restriction) => {
   const classes = {
     '4P': 'restriction-4p',
@@ -273,17 +264,9 @@ const getRestrictionClass = (restriction) => {
   return classes[restriction] || 'restriction-default'
 }
 
-// 获取显示名称
-const getDisplayName = (spot) => {
-  if (spot.street_name && spot.street_name !== 'Unknown Street') {
-    return spot.street_name
-  }
-  // 使用ID生成Parking Lot名称
-  const id = spot.id || spot.sensor_id || spot.bay_id || 'Unknown'
-  return `Parking Lot ${id}`
-}
+// Display name functions moved to utils/common.js
 
-// 格式化时间限制
+// Format time restriction
 const formatTimeRestriction = (spot) => {
   if (!spot.time_restriction_start || !spot.time_restriction_finish) {
     return 'No time restriction'
@@ -291,14 +274,14 @@ const formatTimeRestriction = (spot) => {
   return `${spot.time_restriction_start} - ${spot.time_restriction_finish}`
 }
 
-// 在地图上显示
+// Show on map
 const showOnMap = (spot) => {
   console.log('ParkingInfo: showOnMap called with spot:', spot)
   
-  // 验证坐标是否存在
+  // Verify coordinates exist
   if (!spot.latitude || !spot.longitude) {
     console.error('ParkingInfo: Missing coordinates for spot:', spot)
-    alert('无法显示该停车位：缺少坐标信息')
+    alert('Unable to display this parking spot: missing coordinate information')
     return
   }
   
@@ -310,12 +293,12 @@ const showOnMap = (spot) => {
   }
   console.log('ParkingInfo: emitting showSpotOnMap with:', spotInfo)
   
-  // 通知父组件跳转到地图页面并显示指定停车位
+  // Notify parent component to navigate to map page and show specified parking spot
   emit('navigate', 'map')
   emit('showSpotOnMap', spotInfo)
 }
 
-// 重置搜索
+// Reset search
 const resetSearch = () => {
   destination.value = ''
   parkingSpots.value = []

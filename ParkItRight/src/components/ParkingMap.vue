@@ -23,7 +23,7 @@
         </div>
       </div>
       
-      <!-- 停车类型选择按钮 -->
+      <!-- Parking type filter buttons -->
       <div class="parking-type-controls">
         <button 
           @click="setParkingTypeFilter('all')" 
@@ -87,6 +87,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MAPBOX_CONFIG, BACKEND_CONFIG } from '../config/mapbox.js'
+import { calculateDistance, getDisplayName } from '../utils/common.js'
 
 // 定义props
 const props = defineProps({
@@ -116,7 +117,7 @@ let allParkingSpots = []
 let searchMarker = null
 const isFiltered = ref(false) // Added: whether in filtered state
 const searchLocationName = ref('') // Renamed to avoid conflicts
-const parkingTypeFilter = ref('all') // 停车类型过滤器：'all', 'street', 'building'
+const parkingTypeFilter = ref('all') // Parking type filter: 'all', 'street', 'building'
 
 // Backend API configuration - dynamically obtained
 const BACKEND_URL = BACKEND_CONFIG.baseURL
@@ -664,17 +665,7 @@ const filterParkingByLocation = (lng, lat, locationName) => {
   }, 3000)
 }
 
-// Calculate distance between two points in kilometers
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return R * c
-}
+// Distance calculation functions moved to utils/common.js
 
 // Update parking layer with new data
 const updateParkingLayer = (spots) => {
@@ -686,15 +677,7 @@ const updateParkingLayer = (spots) => {
   }
 }
 
-// 获取显示名称（与ParkingInfo组件保持一致）
-const getDisplayName = (properties) => {
-  if (properties.street_name && properties.street_name !== 'Unknown Street') {
-    return properties.street_name
-  }
-  // 使用ID生成Parking Lot名称
-  const id = properties.id || properties.sensor_id || properties.bay_id || 'Unknown'
-  return `Parking Lot ${id}`
-}
+// Display name functions moved to utils/common.js
 
 // Add map event listeners
 const addMapEventListeners = () => {
@@ -805,39 +788,39 @@ const resetView = () => {
   console.log('🔄 View has been reset, showing all parking spots')
 }
 
-// 设置停车类型过滤器
+// Set parking type filter
 const setParkingTypeFilter = (type) => {
   parkingTypeFilter.value = type
   updateParkingLayerVisibility()
   console.log(`🎯 Parking type filter set to: ${type}`)
 }
 
-// 更新停车层可见性
+// Update parking layer visibility
 const updateParkingLayerVisibility = () => {
   if (!map) return
   
   const showStreet = parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'street'
   const showBuilding = parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'building'
   
-  // 更新街道停车层可见性
+  // Update street parking layer visibility
   if (map.getLayer('parking-spots-layer')) {
     map.setLayoutProperty('parking-spots-layer', 'visibility', showStreet ? 'visible' : 'none')
   }
   
-  // 更新建筑物停车层可见性
+  // Update building parking layer visibility
   if (map.getLayer('building-parking-points')) {
     map.setLayoutProperty('building-parking-points', 'visibility', showBuilding ? 'visible' : 'none')
   }
   
-  // 更新统计数据
+  // Update statistics data
   updateParkingCounts()
 }
 
-// 更新停车统计数据
+// Update parking statistics data
 const updateParkingCounts = () => {
   let totalCount = 0
-  let availableCount = 0
-  let occupiedCount = 0
+  let availableCountLocal = 0
+  let occupiedCountLocal = 0
   
   // Get current data from map sources
   let currentStreetSpots = allParkingSpots
@@ -862,9 +845,9 @@ const updateParkingCounts = () => {
       totalCount++
       const status = spot.properties.status
       if (status === 'Available') {
-        availableCount++
+        availableCountLocal++
       } else if (status === 'Occupied') {
-        occupiedCount++
+        occupiedCountLocal++
       }
     })
   }
@@ -872,14 +855,14 @@ const updateParkingCounts = () => {
   if (parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'building') {
     currentBuildingSpots.forEach(spot => {
       totalCount++
-      // 建筑物停车位默认为可用
-      availableCount++
+      // Building parking spots are considered available by default
+      availableCountLocal++
     })
   }
   
   parkingCount.value = totalCount
-  availableCount.value = availableCount
-  occupiedCount.value = occupiedCount
+  availableCount.value = availableCountLocal
+  occupiedCount.value = occupiedCountLocal
 }
 </script>
 

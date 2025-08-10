@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { ParkingService } from './parkingService.js'
+import { calculateDistance, degreesToRadians } from '../utils/common.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -13,30 +14,30 @@ export class ParkingInfoService {
     this.loadParkingZones()
   }
 
-  // 加载停车区域数据（从CSV文件）
+  // Load parking zone data from CSV file
   loadParkingZones() {
     try {
-      // 从backend/src/services/ 到 backend/data/ 的正确路径
+      // Correct path from backend/src/services/ to backend/data/
       const csvPath = path.join(__dirname, '../../data/parking_zones.csv')
       
-      console.log('尝试加载CSV文件:', csvPath)
+      console.log('Attempting to load CSV file:', csvPath)
       
       if (fs.existsSync(csvPath)) {
         const csvData = fs.readFileSync(csvPath, 'utf8')
         this.parseCSVData(csvData)
       } else {
-        console.log('CSV文件不存在，请确保文件路径正确')
-        console.log('当前目录:', __dirname)
-        console.log('尝试的路径:', csvPath)
-        throw new Error('CSV文件不存在')
+        console.log('CSV file does not exist, please ensure file path is correct')
+        console.log('Current directory:', __dirname)
+        console.log('Attempted path:', csvPath)
+        throw new Error('CSV file does not exist')
       }
     } catch (error) {
-      console.error('加载停车区域数据失败:', error)
+      console.error('Failed to load parking zone data:', error)
       throw error
     }
   }
 
-  // 解析CSV数据
+  // Parse CSV data
   parseCSVData(csvData) {
     const lines = csvData.split('\n')
     const headers = lines[0].split(',').map(h => h.trim())
@@ -52,9 +53,9 @@ export class ParkingInfoService {
         zoneData[header] = values[index] || ''
       })
       
-      // 使用ParkingZone列作为zone_id
+      // Use ParkingZone column as zone_id
       if (zoneData.ParkingZone) {
-        // 确保ParkingZone是字符串类型
+        // Ensure ParkingZone is string type
         const parkingZoneId = zoneData.ParkingZone.toString()
         this.parkingZones.set(parkingZoneId, {
           parking_zone_id: parkingZoneId,
@@ -66,44 +67,28 @@ export class ParkingInfoService {
       }
     }
     
-    console.log(`加载了 ${this.parkingZones.size} 个停车区域`)
-    // 显示前几个ParkingZone作为调试信息
+    console.log(`Loaded ${this.parkingZones.size} parking zones`)
+    // Display first few ParkingZones for debugging
     const sampleZones = Array.from(this.parkingZones.keys()).slice(0, 5)
-    console.log('CSV中前5个ParkingZone:', sampleZones)
+    console.log('First 5 ParkingZones in CSV:', sampleZones)
   }
 
 
 
-  // 获取停车收费标准
+  // Get parking rate standards
   async getParkingRates() {
     return Array.from(this.parkingZones.values())
   }
 
-  // 计算两点间距离 (公里)
-  calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371 // 地球半径(公里)
-    const dLat = this.degreesToRadians(lat2 - lat1)
-    const dLon = this.degreesToRadians(lon2 - lon1)
-    
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(this.degreesToRadians(lat1)) * Math.cos(this.degreesToRadians(lat2)) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
-  }
+  // Distance calculation functions moved to utils/common.js
 
-  // 角度转弧度
-  degreesToRadians(degrees) {
-    return degrees * (Math.PI / 180)
-  }
-
-  // 搜索停车位
+  // Search parking spots
   async searchParkingSpots({ location, radius = 300 }) {
     try {
-      // 使用真实的墨尔本停车数据API
+      // Use real Melbourne parking data API
       const realSpots = await this.fetchRealTimeData(location, radius)
       
-      // 将停车位数据与区域限制信息合并
+      // Merge parking spot data with zone restriction information
       const enrichedSpots = realSpots.map(spot => {
         const zoneInfo = this.parkingZones.get(spot.parking_zone_id) || {}
         return {
@@ -115,66 +100,66 @@ export class ParkingInfoService {
         }
       })
 
-      console.log(`返回 ${enrichedSpots.length} 个停车位，前端将处理距离筛选和排序`)
+      console.log(`Returning ${enrichedSpots.length} parking spots, frontend will handle distance filtering and sorting`)
       return enrichedSpots
     } catch (error) {
-      console.error('搜索停车位失败:', error)
+      console.error('Failed to search parking spots:', error)
       throw error
     }
   }
 
-  // 获取真实停车数据
+  // Get real-time parking data
   async fetchRealTimeData(location, radius) {
     try {
-      // 首先地理编码搜索位置
-      let searchLat = -37.8136 // 墨尔本默认坐标
+      // First geocode the search location
+      let searchLat = -37.8136 // Melbourne default coordinates
       let searchLng = 144.9631
       
       if (location && location !== 'Melbourne') {
         try {
-          // 使用Mapbox地理编码API
-          const mapboxToken = 'pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w'
+          // Use Mapbox geocoding API
+          const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN || 'pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w'
           const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxToken}&country=AU&bbox=144.5,-38.5,145.5,-37.5`
           
-          console.log(`后端地理编码URL: ${geocodeUrl}`)
+          console.log(`Backend geocoding URL: ${geocodeUrl}`)
           
           const geocodeResponse = await fetch(geocodeUrl)
           if (geocodeResponse.ok) {
             const geocodeData = await geocodeResponse.json()
-            console.log(`后端地理编码响应:`, geocodeData)
+            console.log(`Backend geocoding response:`, geocodeData)
             if (geocodeData.features && geocodeData.features.length > 0) {
               const [lng, lat] = geocodeData.features[0].center
               searchLat = lat
               searchLng = lng
-              console.log(`后端地理编码成功: "${location}" -> ${lat}, ${lng}`)
+              console.log(`Backend geocoding successful: "${location}" -> ${lat}, ${lng}`)
             } else {
-              console.log(`后端地理编码无结果: "${location}"，使用默认坐标`)
+              console.log(`Backend geocoding no results: "${location}", using default coordinates`)
             }
           } else {
-            console.log(`后端地理编码失败: "${location}"，使用默认坐标`)
+            console.log(`Backend geocoding failed: "${location}", using default coordinates`)
           }
         } catch (error) {
-          console.log(`后端地理编码错误: "${location}":`, error.message)
+          console.log(`Backend geocoding error: "${location}":`, error.message)
         }
       }
 
-      // 使用现有的ParkingService获取真实数据
+      // Use existing ParkingService to get real data
       const result = await this.parkingService.getParkingSpots({}, 1000, 0)
       
       if (!result.spots || result.spots.length === 0) {
-        throw new Error('没有获取到停车数据')
+        throw new Error('No parking data retrieved')
       }
 
-      console.log(`获取到 ${result.spots.length} 个停车位`)
-      console.log('CSV中的ParkingZone数量:', this.parkingZones.size)
+      console.log(`Retrieved ${result.spots.length} parking spots`)
+      console.log('Number of ParkingZones in CSV:', this.parkingZones.size)
       
-      // 详细调试：显示前10个停车位的完整信息
+      // Detailed debugging: show complete information for first 10 parking spots
       const sampleSpots = result.spots.slice(0, 10)
-      console.log('=== 实时数据样本 ===')
+      console.log('=== Real-time Data Sample ===')
       sampleSpots.forEach((spot, index) => {
-        console.log(`${index + 1}. ${spot.street_name}: zone_number=${spot.zone_number} (类型: ${typeof spot.zone_number})`)
-        // 显示所有可能的字段
-        console.log(`   完整数据:`, {
+        console.log(`${index + 1}. ${spot.street_name}: zone_number=${spot.zone_number} (type: ${typeof spot.zone_number})`)
+        // Show all possible fields
+        console.log(`   Complete data:`, {
           bay_id: spot.bay_id,
           sensor_id: spot.sensor_id,
           zone_number: spot.zone_number,
@@ -183,18 +168,18 @@ export class ParkingInfoService {
         })
       })
       
-      // 显示CSV中的前10个ParkingZone
+      // Show first 10 ParkingZones in CSV
       const csvZones = Array.from(this.parkingZones.keys()).slice(0, 10)
-      console.log('=== CSV中的ParkingZone样本 ===')
+      console.log('=== CSV ParkingZone Sample ===')
       csvZones.forEach((zone, index) => {
-        console.log(`${index + 1}. ${zone} (类型: ${typeof zone})`)
+        console.log(`${index + 1}. ${zone} (type: ${typeof zone})`)
       })
 
-      // 检查所有有zone_number的停车位
+      // Check all parking spots with zone_number
       const spotsWithZone = result.spots.filter(spot => spot.zone_number)
-      console.log(`有zone_number的停车位数量: ${spotsWithZone.length}`)
+      console.log(`Number of spots with zone_number: ${spotsWithZone.length}`)
       
-      // 检查匹配情况
+      // Check matching status
       let matchCount = 0
       const matchedSpots = []
       
@@ -203,92 +188,92 @@ export class ParkingInfoService {
         if (this.parkingZones.has(zoneStr)) {
           matchCount++
           matchedSpots.push(spot)
-          console.log(`✅ 匹配成功: ${spot.street_name} (zone_number: ${spot.zone_number})`)
+          console.log(`✅ Match successful: ${spot.street_name} (zone_number: ${spot.zone_number})`)
         } else {
-          console.log(`❌ 不匹配: ${spot.street_name} (zone_number: ${spot.zone_number})`)
+          console.log(`❌ No match: ${spot.street_name} (zone_number: ${spot.zone_number})`)
         }
       })
       
-      console.log(`总匹配数: ${matchCount}/${spotsWithZone.length}`)
+      console.log(`Total matches: ${matchCount}/${spotsWithZone.length}`)
 
-      // 如果找到匹配的停车位，先计算距离，然后筛选300米范围内的
+      // If matched parking spots found, calculate distance first, then filter within 300m range
       if (matchedSpots.length > 0) {
         const spotsWithDistance = matchedSpots.map((spot, index) => {
-          // 计算真实距离
-          const distance = this.calculateDistance(
+          // Calculate real distance
+          const distance = calculateDistance(
             searchLat, searchLng,
             spot.latitude, spot.longitude
-          ) * 1000 // 转换为米
+          ) * 1000 // Convert to meters
           
           return {
             id: spot.bay_id || spot.sensor_id || `spot_${index + 1}`,
             parking_zone_id: spot.zone_number.toString(),
             street_name: spot.street_name || 'Unknown Street',
             location: spot.street_name || 'Unknown Location',
-            distance: Math.round(distance), // 四舍五入到整数
+            distance: Math.round(distance), // Round to integer
             status: spot.status,
             latitude: spot.latitude,
             longitude: spot.longitude
           }
         })
         
-        // 返回所有匹配的停车位，让前端处理距离筛选
-        console.log(`返回 ${spotsWithDistance.length} 个匹配的停车位，前端将筛选300米范围内`)
+        // Return all matched parking spots, let frontend handle distance filtering
+        console.log(`Returning ${spotsWithDistance.length} matched parking spots, frontend will filter within 300m range`)
         return spotsWithDistance
       } else {
-        // 如果没有匹配，返回空数组
-        console.log('没有找到匹配的停车位')
+        // If no matches, return empty array
+        console.log('No matched parking spots found')
         return []
       }
     } catch (error) {
-      console.error('获取真实停车数据失败:', error)
+      console.error('Failed to retrieve real parking data:', error)
       throw error
     }
   }
 
 
 
-  // 获取性价比推荐
+  // Get value-for-money recommendations
   async getRecommendations({ location, limit = 5 }) {
     const spots = await this.searchParkingSpots({ location, radius: 300 })
     
-    // 数据已经在searchParkingSpots中按优惠程度排序了，直接返回前limit个
-    console.log(`返回前 ${limit} 个最优惠的停车位`)
+    // Data is already sorted by value in searchParkingSpots, directly return first limit items
+    console.log(`Returning top ${limit} best value parking spots`)
     return spots.slice(0, limit)
   }
 
-  // 获取停车位详情
+  // Get parking spot details
   async getSpotDetails(id) {
     const spots = await this.searchParkingSpots({ location: 'Melbourne', radius: 1000 })
     return spots.find(spot => spot.id == id)
   }
 
-  // 计算停车费用（基于限制类型）
+  // Calculate parking cost based on restriction type
   async calculateCost({ zone_id, duration }) {
     const zone = this.parkingZones.get(zone_id)
     if (!zone) {
-      throw new Error('停车区域不存在')
+      throw new Error('Parking zone does not exist')
     }
 
-    // 根据限制类型计算费用
+    // Calculate cost based on restriction type
     const restriction = zone.restriction_display
     let cost = 0
 
     switch (restriction) {
       case '1P':
-        cost = duration * 2.50 // 1小时停车费
+        cost = duration * 2.50 // 1 hour parking fee
         break
       case '2P':
-        cost = Math.min(duration * 2.00, 4.00) // 2小时停车费，最高4元
+        cost = Math.min(duration * 2.00, 4.00) // 2 hour parking fee, max $4
         break
       case '4P':
-        cost = Math.min(duration * 1.50, 6.00) // 4小时停车费，最高6元
+        cost = Math.min(duration * 1.50, 6.00) // 4 hour parking fee, max $6
         break
       case 'MP2P':
-        cost = Math.min(duration * 1.75, 3.50) // 2小时停车费，最高3.5元
+        cost = Math.min(duration * 1.75, 3.50) // 2 hour parking fee, max $3.5
         break
       default:
-        cost = duration * 3.00 // 默认费率
+        cost = duration * 3.00 // Default rate
     }
 
     return {
@@ -300,7 +285,7 @@ export class ParkingInfoService {
     }
   }
 
-  // 获取区域统计信息
+  // Get zone statistics
   async getZoneStats() {
     const zones = Array.from(this.parkingZones.values())
     const stats = {
@@ -317,24 +302,24 @@ export class ParkingInfoService {
     return stats
   }
 
-  // 重新加载CSV数据
+  // Reload CSV data
   async reloadCSVData() {
     this.parkingZones.clear()
     this.loadParkingZones()
-    return { success: true, message: '数据重新加载成功' }
+    return { success: true, message: 'Data reloaded successfully' }
   }
 
-  // 获取调试信息
+  // Get debug information
   async getDebugInfo() {
     try {
-      // 获取实时数据样本
+      // Get real-time data sample
       const result = await this.parkingService.getParkingSpots({}, 50, 0)
       const sampleSpots = result.spots.slice(0, 10)
       
-      // 获取CSV数据样本
+      // Get CSV data sample
       const csvZones = Array.from(this.parkingZones.keys()).slice(0, 10)
       
-      // 检查匹配情况
+      // Check matching status
       const matchedSpots = sampleSpots.filter(spot => 
         spot.zone_number && this.parkingZones.has(spot.zone_number.toString())
       )
@@ -356,7 +341,7 @@ export class ParkingInfoService {
         }))
       }
     } catch (error) {
-      console.error('获取调试信息失败:', error)
+      console.error('Failed to get debug information:', error)
       return {
         error: error.message,
         csv_loaded: this.parkingZones.size > 0,

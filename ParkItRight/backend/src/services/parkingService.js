@@ -1,3 +1,5 @@
+import { calculateDistance, degreesToRadians } from '../utils/common.js'
+
 // Memory cache object (simple version, Redis recommended for production)
 let memoryCache = {
   data: null,
@@ -98,15 +100,15 @@ export class ParkingService {
     }
   }
 
-  // 从墨尔本API同步数据
+  // Sync data from Melbourne API
   async syncFromAPI() {
-    console.log('🌐 开始从墨尔本API同步数据...');
+    console.log('🌐 Starting data sync from Melbourne API...');
     
     for (let i = 0; i < MELBOURNE_APIS.endpoints.length; i++) {
       const endpoint = MELBOURNE_APIS.endpoints[i];
       
       try {
-        console.log(`📡 尝试API端点 ${i + 1}/${MELBOURNE_APIS.endpoints.length}: ${endpoint}`);
+        console.log(`📡 Trying API endpoint ${i + 1}/${MELBOURNE_APIS.endpoints.length}: ${endpoint}`);
         
         const response = await fetch(endpoint, {
           method: 'GET',
@@ -114,93 +116,93 @@ export class ParkingService {
             'User-Agent': 'Melbourne-Parking-App/1.0',
             'Accept': 'application/json'
           },
-          timeout: 30000 // 30秒超时
+          timeout: 30000 // 30 second timeout
         });
         
         if (!response.ok) {
-          console.warn(`⚠️ API端点 ${i + 1} 返回状态: ${response.status} ${response.statusText}`);
+          console.warn(`⚠️ API endpoint ${i + 1} returned status: ${response.status} ${response.statusText}`);
           continue;
         }
         
         const data = await response.json();
-        console.log(`✅ API端点 ${i + 1} 成功获取数据`);
+        console.log(`✅ API endpoint ${i + 1} successfully retrieved data`);
         
-        // 处理不同的API响应格式
+        // Process different API response formats
         const processedData = this.processAPIResponse(data);
         
         if (processedData.length > 0) {
-          console.log(`✅ 成功处理 ${processedData.length} 条停车数据`);
+          console.log(`✅ Successfully processed ${processedData.length} parking data records`);
           return processedData;
         } else {
-          console.warn(`⚠️ API端点 ${i + 1} 返回空数据`);
+          console.warn(`⚠️ API endpoint ${i + 1} returned empty data`);
           continue;
         }
         
       } catch (error) {
-        console.error(`❌ API端点 ${i + 1} 错误:`, error.message);
+        console.error(`❌ API endpoint ${i + 1} error:`, error.message);
         continue;
       }
     }
     
-    throw new Error('所有API端点都失败了');
+    throw new Error('All API endpoints failed');
   }
 
-  // 处理API响应数据
+  // Process API response data
   processAPIResponse(data) {
     let spots = [];
     
-    console.log('🔄 处理API响应数据，格式检测中...');
+    console.log('🔄 Processing API response data, detecting format...');
     
     try {
-      // 格式1: Melbourne API v2 格式 (data.results)
+      // Format 1: Melbourne API v2 format (data.results)
       if (data.results && Array.isArray(data.results)) {
-        console.log(`📋 检测到 Melbourne API v2 格式，记录数: ${data.results.length}`);
+        console.log(`📋 Detected Melbourne API v2 format, record count: ${data.results.length}`);
         spots = data.results
           .filter(spot => this.hasValidLocation(spot))
           .map(spot => this.transformSpotData(spot));
       }
-      // 格式2: GeoJSON 格式 (data.features)
+      // Format 2: GeoJSON format (data.features)
       else if (data.features && Array.isArray(data.features)) {
-        console.log(`📋 检测到 GeoJSON 格式，特征数: ${data.features.length}`);
+        console.log(`📋 Detected GeoJSON format, feature count: ${data.features.length}`);
         spots = data.features
           .filter(feature => this.hasValidLocation(feature))
           .map(feature => this.transformGeoJSONData(feature));
       }
-      // 格式3: 直接数组格式
+      // Format 3: Direct array format
       else if (Array.isArray(data)) {
-        console.log(`📋 检测到直接数组格式，记录数: ${data.length}`);
+        console.log(`📋 Detected direct array format, record count: ${data.length}`);
         spots = data
           .filter(spot => this.hasValidLocation(spot))
           .map(spot => this.transformSpotData(spot));
       }
-      // 格式4: 包装在result.records中
+      // Format 4: Wrapped in result.records
       else if (data.result && data.result.records && Array.isArray(data.result.records)) {
-        console.log(`📋 检测到包装格式，记录数: ${data.result.records.length}`);
+        console.log(`📋 Detected wrapped format, record count: ${data.result.records.length}`);
         spots = data.result.records
           .filter(spot => this.hasValidLocation(spot))
           .map(spot => this.transformSpotData(spot));
       }
       else {
-        console.warn('⚠️ 未识别的API响应格式:', Object.keys(data));
+        console.warn('⚠️ Unrecognized API response format:', Object.keys(data));
         return [];
       }
       
       const validSpots = spots.filter(spot => spot && spot.latitude && spot.longitude);
-      console.log(`✅ 成功转换 ${validSpots.length} 个有效停车位 (过滤前: ${spots.length})`);
+      console.log(`✅ Successfully converted ${validSpots.length} valid parking spots (before filtering: ${spots.length})`);
       
       return validSpots;
       
     } catch (error) {
-      console.error('❌ 处理API响应数据时出错:', error);
+      console.error('❌ Error processing API response data:', error);
       return [];
     }
   }
 
-  // 检查是否有有效位置信息
+  // Check if has valid location information
   hasValidLocation(item) {
     const record = item.record || item.properties || item;
     
-    // 检查各种可能的位置字段格式
+    // Check various possible location field formats
     const hasLocationObject = record.location && 
                              record.location.lat && 
                              record.location.lon;
@@ -214,11 +216,11 @@ export class ParkingService {
     return hasLocationObject || hasLatLng || hasLatLon || hasGeopoint;
   }
 
-  // 转换停车位数据 (API v2格式)
+  // Transform parking spot data (API v2 format)
   transformSpotData(spot) {
     const record = spot.record || spot;
     
-    // 提取位置信息
+    // Extract location information
     let lat, lng;
     if (record.location && record.location.lat && record.location.lon) {
       lat = record.location.lat;
@@ -230,11 +232,11 @@ export class ParkingService {
       lat = record.lat;
       lng = record.lon;
     } else if (record.geopoint2d && Array.isArray(record.geopoint2d)) {
-      lat = record.geopoint2d[0];  // Melbourne格式: [lat, lon]
+      lat = record.geopoint2d[0];  // Melbourne format: [lat, lon]
       lng = record.geopoint2d[1];
     }
     
-    // 确定状态
+    // Determine status
     let status = 'Available';
     if (record.status_description === 'Present' || record.status === 'Present') {
       status = 'Occupied';
@@ -270,7 +272,7 @@ export class ParkingService {
     };
   }
 
-  // 转换GeoJSON数据
+  // Transform GeoJSON data
   transformGeoJSONData(feature) {
     const props = feature.properties || {};
     const coords = feature.geometry.coordinates;
@@ -284,7 +286,7 @@ export class ParkingService {
       id: props.sensor_id || props.bay_id || `geojson_${Math.random().toString(36).substr(2, 9)}`,
       external_id: props.sensor_id || props.bay_id,
       name: props.street_name || `Parking Lot ${props.bay_id || 'Unknown'}`,
-      latitude: parseFloat(coords[1]), // GeoJSON格式: [lng, lat]
+      latitude: parseFloat(coords[1]), // GeoJSON format: [lng, lat]
       longitude: parseFloat(coords[0]),
       street_name: props.street_name || `Parking Lot ${props.bay_id || 'Unknown'}`,
       zone_number: props.zone_number,
@@ -303,22 +305,22 @@ export class ParkingService {
     };
   }
 
-  // 应用过滤器
+  // Apply filters
   applyFilters(data, filters) {
     let filtered = [...data];
     
-    // 状态过滤
+    // Status filtering
     if (filters.status) {
       filtered = filtered.filter(spot => 
         spot.status.toLowerCase() === filters.status.toLowerCase()
       );
     }
     
-    // 地理位置过滤
+    // Geographic location filtering
     if (filters.location) {
       const { lat, lng, radius } = filters.location;
       filtered = filtered.filter(spot => {
-        const distance = this.calculateDistance(
+        const distance = calculateDistance(
           lat, lng, 
           spot.latitude, spot.longitude
         );
@@ -329,39 +331,23 @@ export class ParkingService {
     return filtered;
   }
 
-  // 计算两点间距离 (公里)
-  calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // 地球半径(公里)
-    const dLat = this.degreesToRadians(lat2 - lat1);
-    const dLon = this.degreesToRadians(lon2 - lon1);
-    
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(this.degreesToRadians(lat1)) * Math.cos(this.degreesToRadians(lat2)) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
+  // Distance calculation functions moved to utils/common.js
 
-  degreesToRadians(degrees) {
-    return degrees * (Math.PI/180);
-  }
-
-  // 强制刷新数据
+  // Force refresh data
   async forceRefreshData() {
-    console.log('🔄 强制刷新停车数据...');
+    console.log('🔄 Force refreshing parking data...');
     
-    // 清除缓存
+    // Clear cache
     memoryCache = {
       data: null,
       timestamp: null,
       ttl: this.cacheTTL
     };
     
-    // 从API同步
+    // Sync from API
     const freshData = await this.syncFromAPI();
     
-    // 更新缓存
+    // Update cache
     memoryCache = {
       data: freshData,
       timestamp: Date.now(),
@@ -374,7 +360,7 @@ export class ParkingService {
     };
   }
 
-  // 获取统计数据
+  // Get statistics data
   async getParkingStats() {
     const data = memoryCache.data || [];
     
@@ -391,7 +377,7 @@ export class ParkingService {
     };
   }
 
-  // 搜索停车位
+  // Search parking spots
   async searchParkingSpots(query, limit = 50) {
     const data = memoryCache.data || [];
     
@@ -405,7 +391,7 @@ export class ParkingService {
     return results;
   }
 
-  // 获取单个停车位详情
+  // Get single parking spot details
   async getParkingSpotById(id) {
     const data = memoryCache.data || [];
     return data.find(spot => 
@@ -417,10 +403,10 @@ export class ParkingService {
   }
 }
 
-// 创建服务实例
+// Create service instance
 const parkingService = new ParkingService();
 
-// 导出便捷函数
+// Export convenience functions
 export const getAllParkingSpots = (filters, limit, offset) => parkingService.getParkingSpots(filters, limit, offset);
 export const forceRefreshData = () => parkingService.forceRefreshData();
 export const searchParkingSpots = (searchTerm, limit) => parkingService.searchParkingSpots(searchTerm, limit);

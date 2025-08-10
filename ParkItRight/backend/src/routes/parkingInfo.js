@@ -4,26 +4,26 @@ import { ParkingInfoService } from '../services/parkingInfoService.js'
 const router = express.Router()
 const parkingInfoService = new ParkingInfoService()
 
-// 获取停车收费标准
+// Get parking rate standards
 router.get('/rates', async (req, res) => {
   try {
     const rates = await parkingInfoService.getParkingRates()
     res.json({
       success: true,
       data: rates,
-      message: '停车收费标准获取成功'
+      message: 'Parking rate standards retrieved successfully'
     })
   } catch (error) {
-    console.error('获取停车收费标准失败:', error)
+    console.error('Failed to get parking rate standards:', error)
     res.status(500).json({
       success: false,
-      message: '获取停车收费标准失败',
+      message: 'Failed to get parking rate standards',
       error: error.message
     })
   }
 })
 
-// 搜索停车位信息
+// Search parking spot information
 router.post('/search', async (req, res) => {
   try {
     const { location, duration, budget, radius = 5 } = req.body
@@ -31,7 +31,7 @@ router.post('/search', async (req, res) => {
     if (!location) {
       return res.status(400).json({
         success: false,
-        message: '请提供停车位置'
+        message: 'Please provide parking location'
       })
     }
 
@@ -45,19 +45,19 @@ router.post('/search', async (req, res) => {
     res.json({
       success: true,
       data: results,
-      message: `找到 ${results.length} 个符合条件的停车位`
+      message: `Found ${results.length} matching parking spots`
     })
   } catch (error) {
-    console.error('搜索停车位失败:', error)
+    console.error('Failed to search parking spots:', error)
     res.status(500).json({
       success: false,
-      message: '搜索停车位失败',
+      message: 'Failed to search parking spots',
       error: error.message
     })
   }
 })
 
-// 获取性价比最优推荐
+// Get value-for-money recommendations
 router.get('/recommendations', async (req, res) => {
   try {
     const { location, duration, budget, limit = 5 } = req.query
@@ -65,7 +65,7 @@ router.get('/recommendations', async (req, res) => {
     if (!location) {
       return res.status(400).json({
         success: false,
-        message: '请提供停车位置'
+        message: 'Please provide parking location'
       })
     }
 
@@ -79,19 +79,19 @@ router.get('/recommendations', async (req, res) => {
     res.json({
       success: true,
       data: recommendations,
-      message: '性价比推荐获取成功'
+      message: 'Value-for-money recommendations retrieved successfully'
     })
   } catch (error) {
-    console.error('获取推荐失败:', error)
+    console.error('Failed to get recommendations:', error)
     res.status(500).json({
       success: false,
-      message: '获取推荐失败',
+      message: 'Failed to get recommendations',
       error: error.message
     })
   }
 })
 
-// 获取停车位详细信息
+// Get parking spot detailed information
 router.get('/spot/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -100,26 +100,26 @@ router.get('/spot/:id', async (req, res) => {
     if (!spotDetails) {
       return res.status(404).json({
         success: false,
-        message: '停车位不存在'
+        message: 'Parking spot does not exist'
       })
     }
 
     res.json({
       success: true,
       data: spotDetails,
-      message: '停车位详情获取成功'
+      message: 'Parking spot details retrieved successfully'
     })
   } catch (error) {
-    console.error('获取停车位详情失败:', error)
+    console.error('Failed to get parking spot details:', error)
     res.status(500).json({
       success: false,
-      message: '获取停车位详情失败',
+      message: 'Failed to get parking spot details',
       error: error.message
     })
   }
 })
 
-// 计算停车费用
+// Calculate parking cost
 router.post('/calculate-cost', async (req, res) => {
   try {
     const { zone_id, duration, vehicle_type = 'standard' } = req.body
@@ -127,7 +127,7 @@ router.post('/calculate-cost', async (req, res) => {
     if (!zone_id || !duration) {
       return res.status(400).json({
         success: false,
-        message: '请提供区域ID和停车时长'
+        message: 'Please provide zone ID and parking duration'
       })
     }
 
@@ -140,51 +140,51 @@ router.post('/calculate-cost', async (req, res) => {
     res.json({
       success: true,
       data: cost,
-      message: '费用计算成功'
+      message: 'Cost calculation successful'
     })
   } catch (error) {
-    console.error('计算费用失败:', error)
+    console.error('Failed to calculate cost:', error)
     res.status(500).json({
       success: false,
-      message: '计算费用失败',
+      message: 'Failed to calculate cost',
       error: error.message
     })
   }
 })
 
-// 获取区域统计信息
+// Get zone statistics
 router.get('/zone-stats', async (req, res) => {
   try {
     const stats = await parkingInfoService.getZoneStats()
     res.json({
       success: true,
       data: stats,
-      message: '区域统计信息获取成功'
+      message: 'Zone statistics retrieved successfully'
     })
   } catch (error) {
-    console.error('获取区域统计失败:', error)
+    console.error('Failed to get zone statistics:', error)
     res.status(500).json({
       success: false,
-      message: '获取区域统计失败',
+      message: 'Failed to get zone statistics',
       error: error.message
     })
   }
 })
 
-// 调试端点：检查数据匹配情况
+// Debug endpoint: check data matching status
 router.get('/debug-match', async (req, res) => {
   try {
     const debugInfo = await parkingInfoService.getDebugInfo()
     res.json({
       success: true,
       data: debugInfo,
-      message: '调试信息获取成功'
+      message: 'Debug information retrieved successfully'
     })
   } catch (error) {
-    console.error('获取调试信息失败:', error)
+    console.error('Failed to get debug information:', error)
     res.status(500).json({
       success: false,
-      message: '获取调试信息失败',
+      message: 'Failed to get debug information',
       error: error.message
     })
   }

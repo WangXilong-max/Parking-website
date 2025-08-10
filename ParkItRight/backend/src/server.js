@@ -90,9 +90,7 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       parking: '/api/parking',
-      'parking-info': '/api/parking-info',
-      auth: '/api/auth',
-      users: '/api/users'
+      'parking-info': '/api/parking-info'
     },
     docs: 'API is running',
     timestamp: new Date().toISOString()
