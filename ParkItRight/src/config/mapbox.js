@@ -29,7 +29,8 @@ export const MAPBOX_CONFIG = {
 // Backend API configuration - supports multi-environment deployment
 export const BACKEND_CONFIG = {
   // Auto-detect backend URL - supports environment variables or defaults to local
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
+  baseURL: import.meta.env.VITE_BACKEND_URL || 
+           (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001'),
   
   // API endpoints
   endpoints: {

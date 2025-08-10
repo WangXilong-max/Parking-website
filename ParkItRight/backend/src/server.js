@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Import routes
 import parkingRoutes from './routes/parking.js';
@@ -14,6 +16,9 @@ import { startParkingDataSync } from './services/parkingSync.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -22,10 +27,25 @@ app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests from any localhost port, or requests without origin (like Postman)
-    if (!origin || origin.startsWith('http://localhost:')) {
+    // Allow requests from any localhost port, Railway domains, or requests without origin (like Postman)
+    const allowedOrigins = [
+      /^http:\/\/localhost:\d+$/,  // Any localhost port
+      /^https:\/\/.*\.railway\.app$/,  // Any Railway subdomain
+      /^https:\/\/.*\.vercel\.app$/,   // Vercel domains
+      /^https:\/\/.*\.netlify\.app$/,  // Netlify domains
+      process.env.FRONTEND_URL,        // Custom frontend URL
+      process.env.RAILWAY_STATIC_URL   // Railway static URL
+    ].filter(Boolean);
+
+    if (!origin) {
+      // Allow requests without origin (like Postman, mobile apps)
+      callback(null, true);
+    } else if (allowedOrigins.some(pattern => 
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    )) {
       callback(null, true);
     } else {
+      console.log(`⚠️ CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -97,6 +117,20 @@ app.get('/', (req, res) => {
   });
 });
 
+// 服务静态文件 (生产环境)
+if (process.env.NODE_ENV === 'production') {
+  const frontendDistPath = path.join(__dirname, '../../dist');
+  
+  // 服务静态资源
+  app.use(express.static(frontendDistPath, {
+    maxAge: '1d',  // 缓存静态文件1天
+    etag: true,
+    lastModified: true
+  }));
+  
+  console.log(`📁 Serving static files from: ${frontendDistPath}`);
+}
+
 // API路由
 app.use('/api/parking', parkingRoutes);
 app.use('/api/parking-info', parkingInfoRoutes);
@@ -119,16 +153,24 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handling
-app.use('*', (req, res) => {
+// 404 handling for API routes, serve frontend for all other routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({ 
     success: false,
-    error: 'Endpoint not found',
+    error: 'API endpoint not found',
     path: req.originalUrl,
     method: req.method,
     timestamp: new Date().toISOString()
   });
 });
+
+// Serve frontend for all non-API routes (SPA fallback)
+if (process.env.NODE_ENV === 'production') {
+  app.use('*', (req, res) => {
+    const frontendDistPath = path.join(__dirname, '../../dist');
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Start server
 async function startServer() {
