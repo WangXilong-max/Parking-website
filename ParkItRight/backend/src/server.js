@@ -1,3 +1,4 @@
+// backend/src/server.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,87 +8,88 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Import routes
+// Routes
 import parkingRoutes from './routes/parking.js';
 import parkingInfoRoutes from './routes/parkingInfo.js';
 
-// Import services
+// Services
 import { startParkingDataSync } from './services/parkingSync.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware configuration
-app.use(helmet());
+/* ---------- Security / infra ---------- */
+app.set('trust proxy', 1); // behind Railway/Cloudflare
+
+app.use(helmet({
+  contentSecurityPolicy: false, // start relaxed; tighten later
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
+}));
+
 app.use(compression());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+/* ---------- CORS (allow multiple origins via env) ---------- */
+/* FRONTEND_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173" */
+const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests from any localhost port, or requests without origin (like Postman)
-    if (!origin || origin.startsWith('http://localhost:')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+  origin(origin, cb) {
+    // allow same-origin / curl / server-to-server (no Origin)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some(o => origin === o || origin.startsWith('http://localhost:')))
+      return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true
 }));
-app.use(morgan('combined'));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Simple rate limiting middleware
+/* ---------- Simple in-memory rate limit (API only) ---------- */
 const requestCounts = new Map();
 const simpleRateLimit = (req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const windowMs = 15 * 60 * 1000; // 15 min
   const maxRequests = 1000;
 
-  if (!requestCounts.has(ip)) {
-    requestCounts.set(ip, { count: 1, resetTime: now + windowMs });
-    return next();
+  const rec = requestCounts.get(ip) || { count: 0, resetTime: now + windowMs };
+  if (now > rec.resetTime) {
+    rec.count = 0;
+    rec.resetTime = now + windowMs;
   }
+  rec.count += 1;
+  requestCounts.set(ip, rec);
 
-  const userRequests = requestCounts.get(ip);
-  
-  if (now > userRequests.resetTime) {
-    userRequests.count = 1;
-    userRequests.resetTime = now + windowMs;
-    return next();
+  if (rec.count > maxRequests) {
+    return res.status(429).json({ error: 'Too many requests', retryAfterMs: rec.resetTime - now });
   }
-
-  if (userRequests.count >= maxRequests) {
-    return res.status(429).json({
-      error: 'Too many requests',
-      message: 'Please try again later'
-    });
-  }
-
-  userRequests.count++;
   next();
 };
-
 app.use('/api', simpleRateLimit);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+/* ---------- Health & root ---------- */
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'OK',
     service: 'Melbourne Parking Backend',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    memory: process.memoryUsage(),
     version: '1.0.0'
   });
 });
 
-// Root path
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     message: '🅿️ Melbourne Parking Backend API',
     version: '1.0.0',
@@ -95,48 +97,23 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       parking: '/api/parking',
-      'parking-info': '/api/parking-info'
+      parkingInfo: '/api/parking-info'
     },
-    docs: 'API is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// 服务静态文件 (生产环境)
-if (process.env.NODE_ENV === 'production') {
-  const frontendDistPath = path.join(__dirname, '../../dist');
-  
-  // 服务静态资源
-  app.use(express.static(frontendDistPath));
-  
-  console.log(`📁 Serving static files from: ${frontendDistPath}`);
-}
-
-// API路由
+/* ---------- API routes ---------- */
 app.use('/api/parking', parkingRoutes);
 app.use('/api/parking-info', parkingInfoRoutes);
 
-// Global error handling
-app.use((err, req, res, next) => {
-  console.error('❌ API error:', err);
-  
-  const statusCode = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal server error';
-  
-  res.status(statusCode).json({
-    success: false,
-    error: message,
-    timestamp: new Date().toISOString(),
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: err.stack,
-      details: err
-    })
-  });
-});
+/* ---------- Serve frontend build (always) ---------- */
+const distPath = path.resolve(__dirname, '../../dist');
+app.use(express.static(distPath));
 
-// 404 handling for API routes, serve frontend for all other routes
+// 404 for API only
 app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     success: false,
     error: 'API endpoint not found',
     path: req.originalUrl,
@@ -145,68 +122,57 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Serve frontend for all non-API routes (SPA fallback)
-if (process.env.NODE_ENV === 'production') {
-  app.use('*', (req, res) => {
-    const frontendDistPath = path.join(__dirname, '../../dist');
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-  });
-}
+// SPA fallback for everything else
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
-// Start server
+/* ---------- Global error handler ---------- */
+app.use((err, _req, res, _next) => {
+  console.error('❌ API error:', err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    error: err.message || 'Internal server error',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+  });
+});
+
+/* ---------- Start ---------- */
 async function startServer() {
   try {
     console.log('🚀 Starting Melbourne Parking Backend...');
-    
-    // Start parking data sync service
     console.log('⏰ Starting data sync service...');
     startParkingDataSync();
-    
-    // Start HTTP server
-    app.listen(PORT, () => {
+
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`
 ┌─────────────────────────────────────────┐
 │  🅿️  Melbourne Parking Backend API      │
 ├─────────────────────────────────────────┤
-│  🌐 Service URL: http://localhost:${PORT}     │
-│  📚 API Root: http://localhost:${PORT}/     │
-│  🏥 Health Check: http://localhost:${PORT}/health │
-│  🅿️ Parking API: http://localhost:${PORT}/api/parking │
-│  ⏰ Environment: ${process.env.NODE_ENV || 'development'}                 │
-│  📊 Status: Running                        │
+│  🌐 URL: http://0.0.0.0:${PORT}                │
+│  🏥 Health: /health                      │
+│  🅿️ API:    /api/parking                 │
+│  📦 Static:  ${distPath}                 │
+│  ⏰ Env:     ${process.env.NODE_ENV || 'development'}        │
 └─────────────────────────────────────────┘
-
-🔥 Server started successfully!
-📡 Syncing parking data...
       `);
     });
-    
-  } catch (error) {
-    console.error('❌ Server startup failed:', error);
+  } catch (e) {
+    console.error('❌ Server startup failed:', e);
     process.exit(1);
   }
 }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('👋 Received SIGTERM signal, gracefully shutting down...');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('👋 Received SIGINT signal, gracefully shutting down...');
-  process.exit(0);
-});
-
-// Catch unhandled exceptions
-process.on('uncaughtException', (err) => {
-  console.error('🚨 Uncaught exception:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🚨 Unhandled Promise rejection:', reason);
-  process.exit(1);
-});
+/* ---------- Signals ---------- */
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    console.log(`👋 Received ${sig}, shutting down...`);
+    process.exit(0);
+  });
+}
+process.on('uncaughtException', e => { console.error('🚨 Uncaught exception:', e); process.exit(1); });
+process.on('unhandledRejection', r => { console.error('🚨 Unhandled rejection:', r); process.exit(1); });
 
 startServer();
