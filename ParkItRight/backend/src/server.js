@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 
 // Import routes
 import parkingRoutes from './routes/parking.js';
+import parkingInfoRoutes from './routes/parkingInfo.js';
 
 // Import services
 import { startParkingDataSync } from './services/parkingSync.js';
@@ -89,6 +90,7 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       parking: '/api/parking',
+      'parking-info': '/api/parking-info',
       auth: '/api/auth',
       users: '/api/users'
     },
@@ -99,6 +101,7 @@ app.get('/', (req, res) => {
 
 // API路由
 app.use('/api/parking', parkingRoutes);
+app.use('/api/parking-info', parkingInfoRoutes);
 
 // Global error handling
 app.use((err, req, res, next) => {

@@ -31,7 +31,7 @@
     </div>
 
     <!-- Charts Section -->
-    <div class="charts-grid">
+    <div class="charts-vertical">
       <!-- Population Trend Chart -->
       <div class="chart-card">
         <h3>Population Growth Trend (2015-2021)</h3>
@@ -223,9 +223,9 @@ const getVehiclesPerCapita = () => {
   color: #2c3e50;
 }
 
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+.charts-vertical {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
   margin: 20px 0;
 }
@@ -268,10 +268,6 @@ const getVehiclesPerCapita = () => {
 
 @media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-grid {
     grid-template-columns: 1fr;
   }
 

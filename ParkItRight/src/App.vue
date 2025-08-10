@@ -2,10 +2,11 @@
 import ParkingMap from './components/ParkingMap.vue'
 import DashboardView from './components/DashboardView.vue'
 import HomePage from './components/HomePage.vue'
+import ParkingInfo from './components/ParkingInfo.vue'
 import { ref } from 'vue'
 import backgroundImage from './images/background.jpg'
 
-const currentPage = ref('home') // 'home', 'map', 'dashboard'
+const currentPage = ref('home') // 'home', 'map', 'dashboard', 'parking-info'
 
 const navigateTo = (page) => {
   currentPage.value = page
@@ -42,6 +43,13 @@ const goHome = () => {
         >
           Data
         </button>
+        <button 
+          @click="navigateTo('parking-info')" 
+          class="nav-btn"
+          :class="{ active: currentPage === 'parking-info' }"
+        >
+          Parking Info
+        </button>
       </div>
     </nav>
 
@@ -57,6 +65,10 @@ const goHome = () => {
       />
       <DashboardView 
         v-else-if="currentPage === 'dashboard'" 
+        :class="{ 'with-nav': currentPage !== 'home' }"
+      />
+      <ParkingInfo 
+        v-else-if="currentPage === 'parking-info'" 
         :class="{ 'with-nav': currentPage !== 'home' }"
       />
     </Transition>

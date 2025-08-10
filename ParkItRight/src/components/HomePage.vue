@@ -41,19 +41,19 @@
           </div>
         </div>
 
-        <!-- 预留区块 -->
-        <div class="feature-card coming-soon">
+        <!-- Parking Info 区块 -->
+        <div class="feature-card" @click="navigateToParkingInfo">
           <div class="feature-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
             </svg>
           </div>
-          <h3 class="feature-title">Coming Soon</h3>
-          <p class="feature-description">More features are under development, stay tuned</p>
+          <h3 class="feature-title">Parking Info</h3>
+          <p class="feature-description">Find the best parking deals near your destination</p>
           <div class="feature-action">
-            <span class="action-text">Coming Soon</span>
+            <span class="action-text">Find Best Deals</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+              <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" fill="currentColor"/>
             </svg>
           </div>
         </div>
@@ -71,6 +71,10 @@ const navigateToMap = () => {
 
 const navigateToDashboard = () => {
   emit('navigate', 'dashboard')
+}
+
+const navigateToParkingInfo = () => {
+  emit('navigate', 'parking-info')
 }
 </script>
 

@@ -22,6 +22,32 @@
           </button>
         </div>
       </div>
+      
+      <!-- 停车类型选择按钮 -->
+      <div class="parking-type-controls">
+        <button 
+          @click="setParkingTypeFilter('all')" 
+          :class="{ active: parkingTypeFilter === 'all' }" 
+          class="type-btn"
+        >
+          All Types
+        </button>
+        <button 
+          @click="setParkingTypeFilter('street')" 
+          :class="{ active: parkingTypeFilter === 'street' }" 
+          class="type-btn"
+        >
+          Street Parking
+        </button>
+        <button 
+          @click="setParkingTypeFilter('building')" 
+          :class="{ active: parkingTypeFilter === 'building' }" 
+          class="type-btn"
+        >
+          Building Parking
+        </button>
+      </div>
+      
       <div class="controls">
         <div class="info">
           <div class="data-status">
@@ -33,13 +59,13 @@
             </span>
           </div>
           <div class="legend">
-            <span class="legend-item">
+            <span class="legend-item" v-if="parkingTypeFilter === 'all' || parkingTypeFilter === 'street'">
               <span class="legend-dot available"></span>Available/Free
             </span>
-            <span class="legend-item">
+            <span class="legend-item" v-if="parkingTypeFilter === 'all' || parkingTypeFilter === 'street'">
               <span class="legend-dot occupied"></span>Occupied
             </span>
-            <span class="legend-item">
+            <span class="legend-item" v-if="parkingTypeFilter === 'all' || parkingTypeFilter === 'building'">
               <span class="legend-dot building"></span>Building Parking
             </span>
           </div>
@@ -77,6 +103,7 @@ let allParkingSpots = []
 let searchMarker = null
 const isFiltered = ref(false) // Added: whether in filtered state
 const searchLocationName = ref('') // Renamed to avoid conflicts
+const parkingTypeFilter = ref('all') // 停车类型过滤器：'all', 'street', 'building'
 
 // Backend API configuration - dynamically obtained
 const BACKEND_URL = BACKEND_CONFIG.baseURL
@@ -597,6 +624,67 @@ const resetView = () => {
 
   console.log('🔄 View has been reset, showing all parking spots')
 }
+
+// 设置停车类型过滤器
+const setParkingTypeFilter = (type) => {
+  parkingTypeFilter.value = type
+  updateParkingLayerVisibility()
+  console.log(`🎯 Parking type filter set to: ${type}`)
+}
+
+// 更新停车层可见性
+const updateParkingLayerVisibility = () => {
+  if (!map) return
+  
+  const showStreet = parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'street'
+  const showBuilding = parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'building'
+  
+  // 更新街道停车层可见性
+  if (map.getLayer('parking-spots-layer')) {
+    map.setLayoutProperty('parking-spots-layer', 'visibility', showStreet ? 'visible' : 'none')
+  }
+  
+  // 更新建筑物停车层可见性
+  if (map.getLayer('building-parking-points')) {
+    map.setLayoutProperty('building-parking-points', 'visibility', showBuilding ? 'visible' : 'none')
+  }
+  
+  // 更新统计数据
+  updateParkingCounts()
+}
+
+// 更新停车统计数据
+const updateParkingCounts = () => {
+  let totalCount = 0
+  let availableCount = 0
+  let occupiedCount = 0
+  
+  if (parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'street') {
+    allParkingSpots.forEach(spot => {
+      totalCount++
+      const status = spot.properties.status
+      if (status === 'Available') {
+        availableCount++
+      } else if (status === 'Occupied') {
+        occupiedCount++
+      }
+    })
+  }
+  
+  if (parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'building') {
+    if (buildingParkingData && buildingParkingData.features) {
+      buildingParkingData.features.forEach(spot => {
+        totalCount++
+        // 建筑物停车位默认为可用
+        availableCount++
+      })
+    }
+  }
+  
+  parkingCount.value = totalCount
+  availableCount.value = availableCount
+  occupiedCount.value = occupiedCount
+}
 </script>
 
 <style scoped>
@@ -672,6 +760,43 @@ const resetView = () => {
 .search-btn:disabled, .refresh-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+/* 停车类型选择按钮样式 */
+.parking-type-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.type-btn {
+  background: #f8f9fa;
+  color: #495057;
+  border: 2px solid #dee2e6;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.type-btn:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.type-btn.active {
+  background: #007cbf;
+  color: white;
+  border-color: #007cbf;
+}
+
+.type-btn.active:hover {
+  background: #005a8b;
+  border-color: #005a8b;
 }
 
 .map-header h2 {
