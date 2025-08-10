@@ -101,8 +101,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root path
-app.get('/', (req, res) => {
+// API root info endpoint
+app.get('/api', (req, res) => {
   res.json({
     message: '🅿️ Melbourne Parking Backend API',
     version: '1.0.0',
@@ -116,6 +116,24 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Root path (only in development) to avoid overriding frontend in production
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/', (req, res) => {
+    res.json({
+      message: '🅿️ Melbourne Parking Backend API (DEV)',
+      version: '1.0.0',
+      status: 'running',
+      endpoints: {
+        health: '/health',
+        parking: '/api/parking',
+        'parking-info': '/api/parking-info'
+      },
+      docs: 'API is running',
+      timestamp: new Date().toISOString()
+    });
+  });
+}
 
 // 服务静态文件 (生产环境)
 if (process.env.NODE_ENV === 'production') {
