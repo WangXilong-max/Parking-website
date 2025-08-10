@@ -3,8 +3,12 @@ FROM node:20.19.0-alpine AS frontend
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+# build args for Vite (either name)
 ARG VITE_MAPBOX_TOKEN
+ARG VITE_MAPBOX_ACCESS_TOKEN
 ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
+ENV VITE_MAPBOX_ACCESS_TOKEN=$VITE_MAPBOX_ACCESS_TOKEN
+
 COPY . .
 RUN npm run build
 
