@@ -5,7 +5,6 @@
       <p>Enter your destination to find the best parking deals with pricing information within 300 meters</p>
     </div>
 
-    <!-- 搜索区域 -->
     <div class="search-section">
       <div class="search-form">
         <div class="form-group">
@@ -25,7 +24,6 @@
       </div>
     </div>
 
-    <!-- 结果展示区域 -->
     <div v-if="parkingSpots.length > 0" class="results-section">
       <div class="results-header">
         <h3>Nearby Parking Spots with Pricing (within 300m)</h3>
@@ -83,7 +81,6 @@
       </div>
     </div>
 
-    <!-- 无结果提示 -->
     <div v-else-if="searched && !loading" class="no-results">
       <div class="no-results-content">
         <span class="no-results-icon">🚗</span>
@@ -93,7 +90,6 @@
       </div>
     </div>
 
-    <!-- 加载状态 -->
     <div v-if="loading" class="loading-section">
       <div class="loading-spinner"></div>
       <p>Searching for nearby parking spots...</p>
@@ -105,8 +101,8 @@
 import { ref } from 'vue'
 import { BACKEND_CONFIG, MAPBOX_CONFIG } from '../config/mapbox.js'
 import { calculateDistance, getDisplayName } from '../utils/common.js'
+import { MELBOURNE_COORDINATES, DISTANCE, RESTRICTION_ORDER } from '../constants/app.js'
 
-// 响应式数据
 const destination = ref('')
 const loading = ref(false)
 const searched = ref(false)
@@ -129,8 +125,8 @@ const searchParkingSpots = async () => {
 
   try {
     // First geocode to get coordinates of search location
-    let searchLat = -37.8136 // Default Melbourne coordinates
-    let searchLng = 144.9631
+    let searchLat = MELBOURNE_COORDINATES.DEFAULT_LAT
+    let searchLng = MELBOURNE_COORDINATES.DEFAULT_LNG
     
     // Try to geocode user input location
     try {
@@ -161,7 +157,7 @@ const searchParkingSpots = async () => {
       },
       body: JSON.stringify({
         location: destination.value,
-        radius: 1000 // Get larger range data, frontend will filter later
+        radius: DISTANCE.DATA_FETCH_RADIUS // Get larger range data, frontend will filter later
       })
     })
 
@@ -187,34 +183,20 @@ const searchParkingSpots = async () => {
         // Update distance to frontend calculated distance
         spot.distance = Math.round(distance)
         
-        // Only return spots within 300m with specific charging restrictions
+        // Only return spots within search radius with specific charging restrictions
         const hasValidRestriction = spot.restriction_display && 
           spot.restriction_display !== 'Unknown' && 
           spot.restriction_display !== ''
         
-        return distance <= 300 && hasValidRestriction
+        return distance <= DISTANCE.SEARCH_RADIUS && hasValidRestriction
       })
       
-      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within 300m with valid restrictions`)
+      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within ${DISTANCE.SEARCH_RADIUS}m with valid restrictions`)
       
-      // Sort by value (within 300m range)
-      const restrictionOrder = {
-        '4P': 1,      // 4 hour parking - best value
-        'MP4P': 2,    // 4 hour parking
-        '2P': 3,      // 2 hour parking
-        'MP2P': 4,    // 2 hour parking
-        'MP3P': 5,    // 3 hour parking
-        '1P': 6,      // 1 hour parking
-        'MP1P': 7,    // 1 hour parking
-        'LZ30': 8,    // 30 minute parking
-        'QP': 9,      // Quick parking
-        'SP': 10,     // Special parking
-        'PP': 11      // Paid parking
-      }
-      
+      // Sort by value (within search radius range)
       nearbySpots.sort((a, b) => {
-        const orderA = restrictionOrder[a.restriction_display] || 999
-        const orderB = restrictionOrder[b.restriction_display] || 999
+        const orderA = RESTRICTION_ORDER[a.restriction_display] || 999
+        const orderB = RESTRICTION_ORDER[b.restriction_display] || 999
         
         if (orderA !== orderB) {
           return orderA - orderB

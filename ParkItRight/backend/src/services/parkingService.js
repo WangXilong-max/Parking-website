@@ -1,10 +1,11 @@
-import { calculateDistance, degreesToRadians } from '../utils/common.js'
+import { calculateDistance } from '../utils/common.js'
+import { TIMEOUTS, API_LIMITS, PARKING_STATUS, DEFAULTS } from '../constants/app.js'
 
 // Memory cache object (simple version, Redis recommended for production)
 let memoryCache = {
   data: null,
   timestamp: null,
-  ttl: 5 * 60 * 1000 // 5 minutes TTL
+  ttl: TIMEOUTS.CACHE_TTL
 };
 
 // Melbourne API configuration
@@ -19,11 +20,11 @@ const MELBOURNE_APIS = {
 export class ParkingService {
   constructor() {
     this.cacheKey = 'parking:spots:all';
-    this.cacheTTL = 5 * 60 * 1000; // 5 minutes cache
+    this.cacheTTL = TIMEOUTS.CACHE_TTL;
   }
 
   // Get parking spot data (prioritize from cache)
-  async getParkingSpots(filters = {}, limit = 1000, offset = 0) {
+  async getParkingSpots(filters = {}, limit = API_LIMITS.DEFAULT_LIMIT, offset = API_LIMITS.DEFAULT_OFFSET) {
     try {
       console.log('📦 Checking memory cache...');
       
@@ -237,11 +238,11 @@ export class ParkingService {
     }
     
     // Determine status
-    let status = 'Available';
-    if (record.status_description === 'Present' || record.status === 'Present') {
-      status = 'Occupied';
-    } else if (record.status_description === 'Unoccupied' || record.status === 'Unoccupied') {
-      status = 'Available';
+    let status = PARKING_STATUS.AVAILABLE;
+    if (record.status_description === PARKING_STATUS.PRESENT || record.status === PARKING_STATUS.PRESENT) {
+      status = PARKING_STATUS.OCCUPIED;
+    } else if (record.status_description === PARKING_STATUS.UNOCCUPIED || record.status === PARKING_STATUS.UNOCCUPIED) {
+      status = PARKING_STATUS.AVAILABLE;
     }
     
     return {

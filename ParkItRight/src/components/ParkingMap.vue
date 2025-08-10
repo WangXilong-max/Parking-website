@@ -89,7 +89,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { MAPBOX_CONFIG, BACKEND_CONFIG } from '../config/mapbox.js'
 import { calculateDistance, getDisplayName } from '../utils/common.js'
 
-// 定义props
+// Define props
 const props = defineProps({
   selectedSpot: {
     type: Object,
@@ -100,7 +100,7 @@ const props = defineProps({
 console.log('ParkingMap: Props received:', props)
 console.log('ParkingMap: selectedSpot:', props.selectedSpot)
 
-// 建筑物停车场数据
+// Building parking data
 let buildingParkingData = null
 
 const mapContainer = ref(null)
@@ -134,7 +134,7 @@ onUnmounted(() => {
   }
 })
 
-// 监听selectedSpot变化
+// Watch for selectedSpot changes
 watch(() => props.selectedSpot, (newSpot, oldSpot) => {
   console.log('selectedSpot changed:', newSpot, 'old:', oldSpot)
   if (newSpot && map && map.isStyleLoaded()) {
@@ -149,7 +149,7 @@ watch(() => props.selectedSpot, (newSpot, oldSpot) => {
   }
 }, { immediate: true })
 
-// 在地图上显示选中的停车位
+// Show selected parking spot on map
 const showSelectedSpotOnMap = (spotInfo) => {
   console.log('showSelectedSpotOnMap called with:', spotInfo)
   if (!map) {

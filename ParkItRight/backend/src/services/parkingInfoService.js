@@ -2,7 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { ParkingService } from './parkingService.js'
-import { calculateDistance, degreesToRadians } from '../utils/common.js'
+import { calculateDistance } from '../utils/common.js'
+import { MELBOURNE_COORDINATES } from '../constants/app.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -112,8 +113,8 @@ export class ParkingInfoService {
   async fetchRealTimeData(location, radius) {
     try {
       // First geocode the search location
-      let searchLat = -37.8136 // Melbourne default coordinates
-      let searchLng = 144.9631
+      let searchLat = MELBOURNE_COORDINATES.DEFAULT_LAT
+      let searchLng = MELBOURNE_COORDINATES.DEFAULT_LNG
       
       if (location && location !== 'Melbourne') {
         try {
