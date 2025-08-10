@@ -7,13 +7,26 @@ import { ref } from 'vue'
 import backgroundImage from './images/background.jpg'
 
 const currentPage = ref('home') // 'home', 'map', 'dashboard', 'parking-info'
+const selectedSpot = ref(null) // 存储选中的停车位信息
 
 const navigateTo = (page) => {
+  console.log('App.vue: navigateTo called with page:', page, 'current selectedSpot:', selectedSpot.value)
   currentPage.value = page
+  // 只有在跳转到home时才清空selectedSpot
+  if (page === 'home') {
+    selectedSpot.value = null
+  }
 }
 
 const goHome = () => {
   currentPage.value = 'home'
+  selectedSpot.value = null
+}
+
+const handleShowSpotOnMap = (spotInfo) => {
+  console.log('App.vue: handleShowSpotOnMap called with:', spotInfo)
+  selectedSpot.value = spotInfo
+  console.log('App.vue: selectedSpot set to:', selectedSpot.value)
 }
 </script>
 
@@ -62,6 +75,7 @@ const goHome = () => {
       <ParkingMap 
         v-else-if="currentPage === 'map'" 
         :class="{ 'with-nav': currentPage !== 'home' }"
+        :selectedSpot="selectedSpot"
       />
       <DashboardView 
         v-else-if="currentPage === 'dashboard'" 
@@ -70,6 +84,8 @@ const goHome = () => {
       <ParkingInfo 
         v-else-if="currentPage === 'parking-info'" 
         :class="{ 'with-nav': currentPage !== 'home' }"
+        @navigate="navigateTo"
+        @showSpotOnMap="handleShowSpotOnMap"
       />
     </Transition>
   </div>

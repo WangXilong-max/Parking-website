@@ -54,9 +54,6 @@
             <span v-if="parkingCount > 0">📍 Total: {{ parkingCount }} | 🟢 Available: {{ availableCount }} | 🔴 Occupied: {{ occupiedCount }}</span>
             <span v-if="isFiltered" class="filter-status">🔍 Showing parking spots within 300m of {{ searchLocationName }}</span>
             <span v-if="parkingCount === 0 && !loading" class="no-data">🔄 Click "Refresh Data" to load parking information</span>
-            <span v-if="parkingCount > 0" class="data-source" :class="{ 'real-data': usingRealData, 'mock-data': !usingRealData }">
-              {{ dataSource }}
-            </span>
           </div>
           <div class="legend">
             <span class="legend-item" v-if="parkingTypeFilter === 'all' || parkingTypeFilter === 'street'">
@@ -70,6 +67,11 @@
             </span>
           </div>
         </div>
+        <div class="data-source-corner" v-if="parkingCount > 0">
+          <span class="data-source" :class="{ 'real-data': usingRealData, 'mock-data': !usingRealData }">
+            {{ dataSource }}
+          </span>
+        </div>
       </div>
     </div>
     <div ref="mapContainer" class="map" id="map"></div>
@@ -81,10 +83,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MAPBOX_CONFIG, BACKEND_CONFIG } from '../config/mapbox.js'
+
+// 定义props
+const props = defineProps({
+  selectedSpot: {
+    type: Object,
+    default: null
+  }
+})
+
+console.log('ParkingMap: Props received:', props)
+console.log('ParkingMap: selectedSpot:', props.selectedSpot)
 
 // 建筑物停车场数据
 let buildingParkingData = null
@@ -119,6 +132,107 @@ onUnmounted(() => {
     map.remove()
   }
 })
+
+// 监听selectedSpot变化
+watch(() => props.selectedSpot, (newSpot, oldSpot) => {
+  console.log('selectedSpot changed:', newSpot, 'old:', oldSpot)
+  if (newSpot && map && map.isStyleLoaded()) {
+    console.log('Showing selected spot on map:', newSpot)
+    showSelectedSpotOnMap(newSpot)
+  } else if (newSpot && map && !map.isStyleLoaded()) {
+    console.log('Map not ready, waiting for style to load...')
+    map.once('styledata', () => {
+      console.log('Map style loaded, showing selected spot')
+      showSelectedSpotOnMap(newSpot)
+    })
+  }
+}, { immediate: true })
+
+// 在地图上显示选中的停车位
+const showSelectedSpotOnMap = (spotInfo) => {
+  console.log('showSelectedSpotOnMap called with:', spotInfo)
+  if (!map) {
+    console.log('Map not available')
+    return
+  }
+
+  const { lat, lng, name, spotId } = spotInfo
+  console.log('Coordinates:', lat, lng, 'Name:', name, 'ID:', spotId)
+
+  // 验证坐标
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+    console.error('Invalid coordinates:', lat, lng)
+    return
+  }
+
+  // 移除之前的选中标记
+  if (map.getLayer('selected-spot-marker')) {
+    map.removeLayer('selected-spot-marker')
+  }
+  if (map.getSource('selected-spot')) {
+    map.removeSource('selected-spot')
+  }
+
+  try {
+    // 添加选中停车位的标记
+    map.addSource('selected-spot', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [lng, lat]
+        },
+        properties: {
+          name: name,
+          id: spotId
+        }
+      }
+    })
+
+    map.addLayer({
+      id: 'selected-spot-marker',
+      type: 'circle',
+      source: 'selected-spot',
+      paint: {
+        'circle-radius': 12,
+        'circle-color': '#FF6B6B',
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff'
+      }
+    })
+
+    console.log('Added selected spot marker')
+
+    // 飞转到选中位置
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 18,
+      duration: 2000
+    })
+
+    console.log('Flying to location')
+
+    // 显示弹出信息
+    setTimeout(() => {
+      const popup = new mapboxgl.Popup()
+        .setLngLat([lng, lat])
+        .setHTML(`
+          <div class="selected-spot-popup">
+            <h3>📍 ${name}</h3>
+            <p><strong>ID:</strong> ${spotId}</p>
+            <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+            <p><em>Selected from Parking Info</em></p>
+          </div>
+        `)
+        .addTo(map)
+      
+      console.log('Added popup')
+    }, 2100)
+  } catch (error) {
+    console.error('Error showing selected spot on map:', error)
+  }
+}
 
 const loadBuildingParkingData = async () => {
   try {
@@ -218,8 +332,27 @@ const initializeMap = () => {
     console.log('Map loaded')
     loadParkingData()
     loadBuildingParkingData()
+    
+    // 地图加载完成后，如果有选中的停车位，则显示它
+    if (props.selectedSpot) {
+      console.log('Map loaded with selectedSpot:', props.selectedSpot)
+      setTimeout(() => {
+        showSelectedSpotOnMap(props.selectedSpot)
+      }, 1000) // 等待1秒确保所有数据都加载完成
+    }
   })
 
+  // 监听样式加载完成
+  map.on('styledata', () => {
+    console.log('Map style loaded')
+    // 如果地图已经加载完成且有选中的停车位，则显示它
+    if (props.selectedSpot && map.isStyleLoaded()) {
+      console.log('Style loaded with selectedSpot:', props.selectedSpot)
+      setTimeout(() => {
+        showSelectedSpotOnMap(props.selectedSpot)
+      }, 500)
+    }
+  })
 }
 // Load parking data from our backend API
 const loadParkingData = async () => {
@@ -283,8 +416,8 @@ const loadParkingData = async () => {
 
     // Update data source info
     usingRealData.value = true
-    const source = result.meta?.cached ? '💾 Cached Data' : '🌐 Fresh Data'
-    dataSource.value = `${source} (${duration}ms)`
+    const source = result.meta?.cached ? '💾 Cached' : '🌐 Live'
+    dataSource.value = source
 
     console.log(`📊 Data statistics: Available ${availableCount.value}, Occupied ${occupiedCount.value}`)
 
@@ -433,7 +566,7 @@ const searchLocation = async () => {
 
 // Filter parking spots by distance from searched location
 const filterParkingByLocation = (lng, lat, locationName) => {
-  const radiusKm = 0.3  // 🔄 Changed to 300m radius
+  const radiusKm = 0.3  // 300m radius
 
   console.log(`🎯 Starting filter: Search location [${lng}, ${lat}], radius ${radiusKm}km (${radiusKm * 1000}m)`)
   console.log(`📊 Total parking spots: ${allParkingSpots.length}`)
@@ -442,49 +575,68 @@ const filterParkingByLocation = (lng, lat, locationName) => {
   isFiltered.value = true
   searchLocationName.value = locationName
 
-  const filteredSpots = allParkingSpots.filter((spot) => {
+  // Filter street parking spots
+  const filteredStreetSpots = allParkingSpots.filter((spot) => {
     const [spotLng, spotLat] = spot.geometry.coordinates
     const distance = calculateDistance(lat, lng, spotLat, spotLng)
     return distance <= radiusKm
   })
 
-  console.log(`✅ Filter result: ${filteredSpots.length} parking spots within ${radiusKm}km range`)
-
-  // Simplified debug info
-  if (filteredSpots.length === 0) {
-    console.log(`⚠️ No parking spots within 300m`)
+  // Filter building parking spots
+  let filteredBuildingSpots = []
+  if (buildingParkingData && buildingParkingData.features) {
+    filteredBuildingSpots = buildingParkingData.features.filter((spot) => {
+      const [spotLng, spotLat] = spot.geometry.coordinates
+      const distance = calculateDistance(lat, lng, spotLat, spotLng)
+      return distance <= radiusKm
+    })
   }
 
-  updateParkingLayer(filteredSpots)
-  parkingCount.value = filteredSpots.length
+  console.log(`✅ Filter result: ${filteredStreetSpots.length} street parking spots, ${filteredBuildingSpots.length} building parking spots within ${radiusKm}km range`)
+
+  // Update street parking layer
+  updateParkingLayer(filteredStreetSpots)
+  
+  // Update building parking layer
+  if (map.getSource('building-parking')) {
+    const filteredBuildingData = {
+      type: 'FeatureCollection',
+      features: filteredBuildingSpots
+    }
+    map.getSource('building-parking').setData(filteredBuildingData)
+  }
+
+  // Update counts
+  const totalCount = filteredStreetSpots.length + filteredBuildingSpots.length
+  parkingCount.value = totalCount
 
   const filteredStatusCounts = {}
-  filteredSpots.forEach(spot => {
+  filteredStreetSpots.forEach(spot => {
     const status = spot.properties.status
     filteredStatusCounts[status] = (filteredStatusCounts[status] || 0) + 1
   })
+  // Building parking spots are considered available
+  filteredStatusCounts['Available'] = (filteredStatusCounts['Available'] || 0) + filteredBuildingSpots.length
+  
   availableCount.value = filteredStatusCounts['Available'] || 0
   occupiedCount.value = filteredStatusCounts['Occupied'] || 0
 
-  console.log(`🔍 Found ${filteredSpots.length} parking spots within 300m of ${locationName}`)
+  console.log(`🔍 Found ${totalCount} parking spots within 300m of ${locationName}`)
   console.log(`📊 Available: ${availableCount.value}, Occupied: ${occupiedCount.value}`)
 
-  // 🔧 Important fix: maintain search location marker and zoom effect regardless of whether parking spots are found
-  // No longer use return to exit early
-  if (filteredSpots.length === 0) {
+  if (totalCount === 0) {
     console.log('⚠️ No parking spots found within 300m, but staying at search location')
-    // Just show prompt, but don't prevent subsequent view adjustments
     setTimeout(() => {
       alert(`No parking spots found within 300m of ${locationName}. Map has been zoomed to search location, you can manually check nearby areas.`)
     }, 1000)
   }
 
-  // Delayed view adjustment - decide how to adjust view based on whether there are parking spots
+  // Delayed view adjustment
   setTimeout(() => {
-    if (filteredSpots.length > 0) {
-      // When there are parking spots: include parking spots and search location
-      const coordinates = filteredSpots.map(spot => spot.geometry.coordinates)
-      coordinates.push([lng, lat]) // 包含搜索位置
+    if (totalCount > 0) {
+      const coordinates = [...filteredStreetSpots.map(spot => spot.geometry.coordinates), 
+                           ...filteredBuildingSpots.map(spot => spot.geometry.coordinates)]
+      coordinates.push([lng, lat]) // Include search location
 
       const lngs = coordinates.map(coord => coord[0])
       const lats = coordinates.map(coord => coord[1])
@@ -494,7 +646,6 @@ const filterParkingByLocation = (lng, lat, locationName) => {
         [Math.max(...lngs), Math.max(...lats)]
       ]
 
-      // If all points are close, maintain high zoom level
       const latRange = Math.max(...lats) - Math.min(...lats)
       const lngRange = Math.max(...lngs) - Math.min(...lngs)
       const maxRange = Math.max(latRange, lngRange)
@@ -508,11 +659,9 @@ const filterParkingByLocation = (lng, lat, locationName) => {
         duration: 2000
       })
     } else {
-      // When there are no parking spots: only maintain zoom state at search location
-      // Don't make additional view adjustments, let map.flyTo in searchLocation function take effect
       console.log('🎯 Maintaining zoom effect at search location')
     }
-  }, 3000) // Give enough time for flyTo in searchLocation to complete (2500ms + 500ms buffer)
+  }, 3000)
 }
 
 // Calculate distance between two points in kilometers
@@ -537,6 +686,16 @@ const updateParkingLayer = (spots) => {
   }
 }
 
+// 获取显示名称（与ParkingInfo组件保持一致）
+const getDisplayName = (properties) => {
+  if (properties.street_name && properties.street_name !== 'Unknown Street') {
+    return properties.street_name
+  }
+  // 使用ID生成Parking Lot名称
+  const id = properties.id || properties.sensor_id || properties.bay_id || 'Unknown'
+  return `Parking Lot ${id}`
+}
+
 // Add map event listeners
 const addMapEventListeners = () => {
   map.on('click', 'parking-spots-layer', (e) => {
@@ -544,12 +703,13 @@ const addMapEventListeners = () => {
     const properties = e.features[0].properties
 
     const statusColor = properties.status === 'Available' ? 'green' : 'red'
+    const displayName = getDisplayName(properties)
 
     const popupContent = `
       <div class="parking-popup">
-        <h3>${properties.name}</h3>
+        <h3>${displayName}</h3>
         <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${properties.status}</span></p>
-        <p><strong>Street:</strong> ${properties.street_name}</p>
+        <p><strong>Location:</strong> ${displayName}</p>
         <p><strong>Area:</strong> ${properties.area}</p>
         <p><strong>Zone:</strong> ${properties.zone_number || 'N/A'}</p>
         <p><strong>Restrictions:</strong> ${properties.restrictions}</p>
@@ -585,21 +745,41 @@ const resetView = () => {
   isFiltered.value = false
   searchLocationName.value = ''
 
+  // Reset street parking layer
   updateParkingLayer(allParkingSpots)
-  parkingCount.value = allParkingSpots.length
+  
+  // Reset building parking layer
+  if (map.getSource('building-parking') && buildingParkingData) {
+    map.getSource('building-parking').setData(buildingParkingData)
+  }
+
+  // Update counts
+  const totalCount = allParkingSpots.length + (buildingParkingData ? buildingParkingData.features.length : 0)
+  parkingCount.value = totalCount
 
   const allStatusCounts = {}
   allParkingSpots.forEach(spot => {
     const status = spot.properties.status
     allStatusCounts[status] = (allStatusCounts[status] || 0) + 1
   })
+  // Add building parking spots as available
+  if (buildingParkingData && buildingParkingData.features) {
+    allStatusCounts['Available'] = (allStatusCounts['Available'] || 0) + buildingParkingData.features.length
+  }
+  
   availableCount.value = allStatusCounts['Available'] || 0
   occupiedCount.value = allStatusCounts['Occupied'] || 0
 
   searchQuery.value = ''
 
-  if (allParkingSpots.length > 0) {
-    const coordinates = allParkingSpots.map(spot => spot.geometry.coordinates)
+  // Fit bounds to show all parking spots
+  if (totalCount > 0) {
+    const coordinates = [...allParkingSpots.map(spot => spot.geometry.coordinates)]
+    
+    // Add building parking coordinates
+    if (buildingParkingData && buildingParkingData.features) {
+      coordinates.push(...buildingParkingData.features.map(spot => spot.geometry.coordinates))
+    }
 
     const lngs = coordinates.map(coord => coord[0])
     const lats = coordinates.map(coord => coord[1])
@@ -659,8 +839,26 @@ const updateParkingCounts = () => {
   let availableCount = 0
   let occupiedCount = 0
   
+  // Get current data from map sources
+  let currentStreetSpots = allParkingSpots
+  let currentBuildingSpots = []
+  
+  if (map.getSource('parking-spots')) {
+    const streetData = map.getSource('parking-spots')._data
+    if (streetData && streetData.features) {
+      currentStreetSpots = streetData.features
+    }
+  }
+  
+  if (map.getSource('building-parking')) {
+    const buildingData = map.getSource('building-parking')._data
+    if (buildingData && buildingData.features) {
+      currentBuildingSpots = buildingData.features
+    }
+  }
+  
   if (parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'street') {
-    allParkingSpots.forEach(spot => {
+    currentStreetSpots.forEach(spot => {
       totalCount++
       const status = spot.properties.status
       if (status === 'Available') {
@@ -672,13 +870,11 @@ const updateParkingCounts = () => {
   }
   
   if (parkingTypeFilter.value === 'all' || parkingTypeFilter.value === 'building') {
-    if (buildingParkingData && buildingParkingData.features) {
-      buildingParkingData.features.forEach(spot => {
-        totalCount++
-        // 建筑物停车位默认为可用
-        availableCount++
-      })
-    }
+    currentBuildingSpots.forEach(spot => {
+      totalCount++
+      // 建筑物停车位默认为可用
+      availableCount++
+    })
   }
   
   parkingCount.value = totalCount
@@ -700,13 +896,14 @@ const updateParkingCounts = () => {
   left: 10px;
   right: 10px;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.85);
   padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   gap: 15px;
+  backdrop-filter: blur(5px);
 }
 
 .search-container {
@@ -722,11 +919,12 @@ const updateParkingCounts = () => {
 .search-input {
   flex: 1;
   padding: 10px 15px;
-  border: 2px solid #e0e0e0;
-  border-radius: 25px;
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
+  background: white;
 }
 
 .search-input:focus {
@@ -734,32 +932,38 @@ const updateParkingCounts = () => {
 }
 
 .search-btn, .reset-btn, .refresh-btn {
-  background: #007cbf;
-  color: white;
+  background: transparent;
+  color: #007cbf;
   border: none;
   padding: 10px 20px;
-  border-radius: 25px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
   white-space: nowrap;
-}
-
-.reset-btn {
-  background: #28a745;
+  text-decoration: underline;
+  font-weight: 500;
+  position: relative;
 }
 
 .search-btn:hover:not(:disabled), .refresh-btn:hover:not(:disabled) {
-  background: #005a8b;
+  background: rgba(0, 124, 191, 0.1);
+  color: #005a8b;
+}
+
+.reset-btn {
+  color: #28a745;
 }
 
 .reset-btn:hover {
-  background: #218838;
+  background: rgba(40, 167, 69, 0.1);
+  color: #218838;
 }
 
 .search-btn:disabled, .refresh-btn:disabled {
-  background: #ccc;
+  color: #ccc;
   cursor: not-allowed;
+  text-decoration: none;
 }
 
 /* 停车类型选择按钮样式 */
@@ -771,32 +975,35 @@ const updateParkingCounts = () => {
 }
 
 .type-btn {
-  background: #f8f9fa;
+  background: transparent;
   color: #495057;
-  border: 2px solid #dee2e6;
+  border: none;
   padding: 8px 16px;
-  border-radius: 20px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
   white-space: nowrap;
+  text-decoration: underline;
+  position: relative;
 }
 
 .type-btn:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: rgba(73, 80, 87, 0.1);
+  color: #343a40;
 }
 
 .type-btn.active {
-  background: #007cbf;
-  color: white;
-  border-color: #007cbf;
+  background: rgba(0, 124, 191, 0.1);
+  color: #007cbf;
+  text-decoration: none;
+  font-weight: 600;
 }
 
 .type-btn.active:hover {
-  background: #005a8b;
-  border-color: #005a8b;
+  background: rgba(0, 124, 191, 0.15);
+  color: #005a8b;
 }
 
 .map-header h2 {
@@ -811,6 +1018,7 @@ const updateParkingCounts = () => {
   align-items: flex-start;
   gap: 15px;
   flex-wrap: wrap;
+  position: relative;
 }
 
 .info {
@@ -828,22 +1036,30 @@ const updateParkingCounts = () => {
   flex-wrap: wrap;
 }
 
+.data-source-corner {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1001;
+}
+
 .data-source {
-  font-size: 12px;
-  font-weight: bold;
-  padding: 4px 8px;
-  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 2px;
   border: 1px solid;
+  opacity: 0.8;
 }
 
 .data-source.real-data {
-  background-color: #d4edda;
+  background-color: rgba(212, 237, 218, 0.9);
   border-color: #28a745;
   color: #155724;
 }
 
 .data-source.mock-data {
-  background-color: #fff3cd;
+  background-color: rgba(255, 243, 205, 0.9);
   border-color: #ffc107;
   color: #856404;
 }

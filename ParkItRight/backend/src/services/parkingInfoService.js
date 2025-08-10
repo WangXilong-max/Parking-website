@@ -79,6 +79,24 @@ export class ParkingInfoService {
     return Array.from(this.parkingZones.values())
   }
 
+  // 计算两点间距离 (公里)
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371 // 地球半径(公里)
+    const dLat = this.degreesToRadians(lat2 - lat1)
+    const dLon = this.degreesToRadians(lon2 - lon1)
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(this.degreesToRadians(lat1)) * Math.cos(this.degreesToRadians(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  // 角度转弧度
+  degreesToRadians(degrees) {
+    return degrees * (Math.PI / 180)
+  }
+
   // 搜索停车位
   async searchParkingSpots({ location, radius = 300 }) {
     try {
@@ -97,7 +115,7 @@ export class ParkingInfoService {
         }
       })
 
-      console.log(`返回 ${enrichedSpots.length} 个停车位`)
+      console.log(`返回 ${enrichedSpots.length} 个停车位，前端将处理距离筛选和排序`)
       return enrichedSpots
     } catch (error) {
       console.error('搜索停车位失败:', error)
@@ -108,6 +126,38 @@ export class ParkingInfoService {
   // 获取真实停车数据
   async fetchRealTimeData(location, radius) {
     try {
+      // 首先地理编码搜索位置
+      let searchLat = -37.8136 // 墨尔本默认坐标
+      let searchLng = 144.9631
+      
+      if (location && location !== 'Melbourne') {
+        try {
+          // 使用Mapbox地理编码API
+          const mapboxToken = 'pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w'
+          const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxToken}&country=AU&bbox=144.5,-38.5,145.5,-37.5`
+          
+          console.log(`后端地理编码URL: ${geocodeUrl}`)
+          
+          const geocodeResponse = await fetch(geocodeUrl)
+          if (geocodeResponse.ok) {
+            const geocodeData = await geocodeResponse.json()
+            console.log(`后端地理编码响应:`, geocodeData)
+            if (geocodeData.features && geocodeData.features.length > 0) {
+              const [lng, lat] = geocodeData.features[0].center
+              searchLat = lat
+              searchLng = lng
+              console.log(`后端地理编码成功: "${location}" -> ${lat}, ${lng}`)
+            } else {
+              console.log(`后端地理编码无结果: "${location}"，使用默认坐标`)
+            }
+          } else {
+            console.log(`后端地理编码失败: "${location}"，使用默认坐标`)
+          }
+        } catch (error) {
+          console.log(`后端地理编码错误: "${location}":`, error.message)
+        }
+      }
+
       // 使用现有的ParkingService获取真实数据
       const result = await this.parkingService.getParkingSpots({}, 1000, 0)
       
@@ -161,21 +211,30 @@ export class ParkingInfoService {
       
       console.log(`总匹配数: ${matchCount}/${spotsWithZone.length}`)
 
-      // 如果找到匹配的停车位，返回它们
+      // 如果找到匹配的停车位，先计算距离，然后筛选300米范围内的
       if (matchedSpots.length > 0) {
-        const spots = matchedSpots.slice(0, 20).map((spot, index) => ({
-          id: spot.bay_id || spot.sensor_id || `spot_${index + 1}`,
-          parking_zone_id: spot.zone_number.toString(),
-          street_name: spot.street_name || 'Unknown Street',
-          location: spot.street_name || 'Unknown Location',
-          distance: Math.floor(Math.random() * radius) + 50,
-          status: spot.status,
-          latitude: spot.latitude,
-          longitude: spot.longitude
-        }))
+        const spotsWithDistance = matchedSpots.map((spot, index) => {
+          // 计算真实距离
+          const distance = this.calculateDistance(
+            searchLat, searchLng,
+            spot.latitude, spot.longitude
+          ) * 1000 // 转换为米
+          
+          return {
+            id: spot.bay_id || spot.sensor_id || `spot_${index + 1}`,
+            parking_zone_id: spot.zone_number.toString(),
+            street_name: spot.street_name || 'Unknown Street',
+            location: spot.street_name || 'Unknown Location',
+            distance: Math.round(distance), // 四舍五入到整数
+            status: spot.status,
+            latitude: spot.latitude,
+            longitude: spot.longitude
+          }
+        })
         
-        console.log(`返回 ${spots.length} 个匹配的停车位`)
-        return spots
+        // 返回所有匹配的停车位，让前端处理距离筛选
+        console.log(`返回 ${spotsWithDistance.length} 个匹配的停车位，前端将筛选300米范围内`)
+        return spotsWithDistance
       } else {
         // 如果没有匹配，返回空数组
         console.log('没有找到匹配的停车位')
@@ -193,33 +252,8 @@ export class ParkingInfoService {
   async getRecommendations({ location, limit = 5 }) {
     const spots = await this.searchParkingSpots({ location, radius: 300 })
     
-    // 按优惠程度排序 (根据您的CSV文件中的限制类型)
-    const restrictionOrder = {
-      '4P': 1,      // 4小时停车 - 最优惠
-      'MP4P': 2,    // 4小时停车
-      '2P': 3,      // 2小时停车
-      'MP2P': 4,    // 2小时停车
-      'MP3P': 5,    // 3小时停车
-      '1P': 6,      // 1小时停车
-      'MP1P': 7,    // 1小时停车
-      'LZ30': 8,    // 30分钟停车
-      'QP': 9,      // 快速停车
-      'SP': 10,     // 特殊停车
-      'PP': 11      // 付费停车
-    }
-    
-    spots.sort((a, b) => {
-      const orderA = restrictionOrder[a.restriction_display] || 999
-      const orderB = restrictionOrder[b.restriction_display] || 999
-      
-      if (orderA !== orderB) {
-        return orderA - orderB
-      }
-      
-      // 如果限制相同，按距离排序
-      return a.distance - b.distance
-    })
-    
+    // 数据已经在searchParkingSpots中按优惠程度排序了，直接返回前limit个
+    console.log(`返回前 ${limit} 个最优惠的停车位`)
     return spots.slice(0, limit)
   }
 

@@ -2,7 +2,7 @@
   <div class="parking-info-container">
     <div class="info-header">
       <h2>Parking Spot Finder</h2>
-      <p>Enter your destination to find the best parking deals within 300 meters</p>
+      <p>Enter your destination to find the best parking deals with pricing information within 300 meters</p>
     </div>
 
     <!-- 搜索区域 -->
@@ -28,8 +28,8 @@
     <!-- 结果展示区域 -->
     <div v-if="parkingSpots.length > 0" class="results-section">
       <div class="results-header">
-        <h3>Nearby Parking Spots (within 300m)</h3>
-        <span class="result-count">Found {{ parkingSpots.length }} parking spots</span>
+        <h3>Nearby Parking Spots with Pricing (within 300m)</h3>
+        <span class="result-count">Found {{ parkingSpots.length }} parking spots with pricing information</span>
       </div>
 
       <div class="spots-list">
@@ -41,7 +41,7 @@
         >
           <div class="spot-header">
             <div class="spot-info">
-              <h4>{{ spot.street_name }}</h4>
+              <h4>{{ getDisplayName(spot) }}</h4>
               <span class="distance">{{ spot.distance }}m</span>
             </div>
             <div class="restriction-badge" :class="getRestrictionClass(spot.restriction_display)">
@@ -52,7 +52,7 @@
           <div class="spot-details">
             <div class="detail-row">
               <span class="label">Location:</span>
-              <span class="value">{{ spot.location }}</span>
+              <span class="value">{{ getDisplayName(spot) }}</span>
             </div>
             <div class="detail-row">
               <span class="label">Time Restriction:</span>
@@ -71,9 +71,6 @@
           </div>
 
           <div class="spot-actions">
-            <button @click="selectSpot(spot)" class="select-btn">
-              Select This Spot
-            </button>
             <button @click="showOnMap(spot)" class="map-btn">
               Show on Map
             </button>
@@ -90,8 +87,8 @@
     <div v-else-if="searched && !loading" class="no-results">
       <div class="no-results-content">
         <span class="no-results-icon">🚗</span>
-        <h3>No nearby parking spots found</h3>
-        <p>Try expanding your search range or choose a different destination</p>
+        <h3>No nearby parking spots with pricing information found</h3>
+        <p>No parking spots within 300m have specific pricing restrictions. Try expanding your search range or choose a different destination.</p>
         <button @click="resetSearch" class="reset-btn">Search Again</button>
       </div>
     </div>
@@ -101,53 +98,33 @@
       <div class="loading-spinner"></div>
       <p>Searching for nearby parking spots...</p>
     </div>
-
-    <!-- 选择确认模态框 -->
-    <div v-if="selectedSpot" class="modal-overlay" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Confirm Selection</h3>
-          <button @click="closeModal" class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="selected-spot-info">
-            <h4>{{ selectedSpot.street_name }}</h4>
-            <p class="spot-location">{{ selectedSpot.location }}</p>
-                         <div class="restriction-info">
-               <div class="restriction-item">
-                 <span class="restriction-label">Parking Restriction:</span>
-                 <span class="restriction-value">{{ selectedSpot.restriction_display }}</span>
-               </div>
-               <div class="restriction-item">
-                 <span class="restriction-label">Time:</span>
-                 <span class="restriction-value">{{ formatTimeRestriction(selectedSpot) }}</span>
-               </div>
-               <div class="restriction-item">
-                 <span class="restriction-label">Distance:</span>
-                 <span class="restriction-value">{{ selectedSpot.distance }}m</span>
-               </div>
-             </div>
-          </div>
-        </div>
-                 <div class="modal-footer">
-           <button @click="closeModal" class="cancel-btn">Cancel</button>
-           <button @click="confirmSelection" class="confirm-btn">Confirm Selection</button>
-         </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { BACKEND_CONFIG } from '../config/mapbox.js'
+import { BACKEND_CONFIG, MAPBOX_CONFIG } from '../config/mapbox.js'
 
 // 响应式数据
 const destination = ref('')
 const loading = ref(false)
 const searched = ref(false)
 const parkingSpots = ref([])
-const selectedSpot = ref(null)
+
+// 定义事件
+const emit = defineEmits(['navigate', 'showSpotOnMap'])
+
+// 计算距离函数（与Map页面保持一致）
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371 // 地球半径(公里)
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
+}
 
 // 搜索停车位
 const searchParkingSpots = async () => {
@@ -160,7 +137,32 @@ const searchParkingSpots = async () => {
   searched.value = true
 
   try {
-    // 调用后端API
+    // 首先进行地理编码获取搜索位置的坐标
+    let searchLat = -37.8136 // 默认墨尔本坐标
+    let searchLng = 144.9631
+    
+    // 尝试地理编码用户输入的位置
+    try {
+      const geocodeResponse = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(destination.value)}.json?access_token=${MAPBOX_CONFIG.accessToken}&country=AU&bbox=144.5,-38.5,145.5,-37.5`)
+      
+      if (geocodeResponse.ok) {
+        const geocodeData = await geocodeResponse.json()
+        if (geocodeData.features && geocodeData.features.length > 0) {
+          const [lng, lat] = geocodeData.features[0].center
+          searchLat = lat
+          searchLng = lng
+          console.log(`ParkingInfo: Geocoded "${destination.value}" to coordinates: ${lat}, ${lng}`)
+        } else {
+          console.log(`ParkingInfo: No geocoding results for "${destination.value}", using default coordinates`)
+        }
+      } else {
+        console.log(`ParkingInfo: Geocoding failed for "${destination.value}", using default coordinates`)
+      }
+    } catch (error) {
+      console.log(`ParkingInfo: Geocoding error for "${destination.value}":`, error)
+    }
+
+    // 获取停车位数据
     const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/search`, {
       method: 'POST',
       headers: {
@@ -168,7 +170,7 @@ const searchParkingSpots = async () => {
       },
       body: JSON.stringify({
         location: destination.value,
-        radius: 300 // 300米范围
+        radius: 1000 // 获取更大范围的数据，前端再筛选
       })
     })
 
@@ -178,10 +180,65 @@ const searchParkingSpots = async () => {
 
     const data = await response.json()
     
-    if (data.success) {
-      parkingSpots.value = data.data
-      // 按优惠程度排序 (4P > 2P > 1P > MP2P)
-      sortByRestriction()
+    if (data.success && data.data.length > 0) {
+      console.log('ParkingInfo: Received parking spots:', data.data)
+      console.log(`ParkingInfo: Using search coordinates: ${searchLat}, ${searchLng}`)
+      
+      // 使用前端距离计算筛选300米范围内的停车位
+      const nearbySpots = data.data.filter(spot => {
+        if (!spot.latitude || !spot.longitude) return false
+        
+        const distance = calculateDistance(
+          searchLat, searchLng,
+          parseFloat(spot.latitude), parseFloat(spot.longitude)
+        ) * 1000 // 转换为米
+        
+        // 更新距离为前端计算的距离
+        spot.distance = Math.round(distance)
+        
+        // 只返回300米范围内且有具体扣费情况的停车位
+        const hasValidRestriction = spot.restriction_display && 
+          spot.restriction_display !== 'Unknown' && 
+          spot.restriction_display !== ''
+        
+        return distance <= 300 && hasValidRestriction
+      })
+      
+      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within 300m with valid restrictions`)
+      
+      // 按优惠程度排序（在300米范围内）
+      const restrictionOrder = {
+        '4P': 1,      // 4小时停车 - 最优惠
+        'MP4P': 2,    // 4小时停车
+        '2P': 3,      // 2小时停车
+        'MP2P': 4,    // 2小时停车
+        'MP3P': 5,    // 3小时停车
+        '1P': 6,      // 1小时停车
+        'MP1P': 7,    // 1小时停车
+        'LZ30': 8,    // 30分钟停车
+        'QP': 9,      // 快速停车
+        'SP': 10,     // 特殊停车
+        'PP': 11      // 付费停车
+      }
+      
+      nearbySpots.sort((a, b) => {
+        const orderA = restrictionOrder[a.restriction_display] || 999
+        const orderB = restrictionOrder[b.restriction_display] || 999
+        
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+        
+        // 如果限制相同，按距离排序
+        return a.distance - b.distance
+      })
+      
+      parkingSpots.value = nearbySpots
+      
+      // 显示第一个停车位的完整数据结构
+      if (parkingSpots.value.length > 0) {
+        console.log('ParkingInfo: First spot structure:', parkingSpots.value[0])
+      }
     } else {
       parkingSpots.value = []
     }
@@ -197,35 +254,6 @@ const searchParkingSpots = async () => {
 }
 
 
-
-// 按停车限制排序（优惠程度）
-const sortByRestriction = () => {
-  const restrictionOrder = {
-    '4P': 1,      // 4小时停车 - 最优惠
-    'MP4P': 2,    // 4小时停车
-    '2P': 3,      // 2小时停车
-    'MP2P': 4,    // 2小时停车
-    'MP3P': 5,    // 3小时停车
-    '1P': 6,      // 1小时停车
-    'MP1P': 7,    // 1小时停车
-    'LZ30': 8,    // 30分钟停车
-    'QP': 9,      // 快速停车
-    'SP': 10,     // 特殊停车
-    'PP': 11      // 付费停车
-  }
-
-  parkingSpots.value.sort((a, b) => {
-    const orderA = restrictionOrder[a.restriction_display] || 999
-    const orderB = restrictionOrder[b.restriction_display] || 999
-    
-    if (orderA !== orderB) {
-      return orderA - orderB
-    }
-    
-    // 如果限制相同，按距离排序
-    return a.distance - b.distance
-  })
-}
 
 // 获取限制类型样式类
 const getRestrictionClass = (restriction) => {
@@ -245,6 +273,16 @@ const getRestrictionClass = (restriction) => {
   return classes[restriction] || 'restriction-default'
 }
 
+// 获取显示名称
+const getDisplayName = (spot) => {
+  if (spot.street_name && spot.street_name !== 'Unknown Street') {
+    return spot.street_name
+  }
+  // 使用ID生成Parking Lot名称
+  const id = spot.id || spot.sensor_id || spot.bay_id || 'Unknown'
+  return `Parking Lot ${id}`
+}
+
 // 格式化时间限制
 const formatTimeRestriction = (spot) => {
   if (!spot.time_restriction_start || !spot.time_restriction_finish) {
@@ -253,26 +291,28 @@ const formatTimeRestriction = (spot) => {
   return `${spot.time_restriction_start} - ${spot.time_restriction_finish}`
 }
 
-// 选择停车位
-const selectSpot = (spot) => {
-  selectedSpot.value = spot
-}
-
 // 在地图上显示
 const showOnMap = (spot) => {
-  // 这里可以触发地图组件显示该位置
-  alert(`Show on map: ${spot.street_name}`)
-}
-
-// 确认选择
-const confirmSelection = () => {
-  alert(`Selected parking spot: ${selectedSpot.value.street_name}`)
-  closeModal()
-}
-
-// 关闭模态框
-const closeModal = () => {
-  selectedSpot.value = null
+  console.log('ParkingInfo: showOnMap called with spot:', spot)
+  
+  // 验证坐标是否存在
+  if (!spot.latitude || !spot.longitude) {
+    console.error('ParkingInfo: Missing coordinates for spot:', spot)
+    alert('无法显示该停车位：缺少坐标信息')
+    return
+  }
+  
+  const spotInfo = {
+    spotId: spot.id,
+    lat: parseFloat(spot.latitude),
+    lng: parseFloat(spot.longitude),
+    name: getDisplayName(spot)
+  }
+  console.log('ParkingInfo: emitting showSpotOnMap with:', spotInfo)
+  
+  // 通知父组件跳转到地图页面并显示指定停车位
+  emit('navigate', 'map')
+  emit('showSpotOnMap', spotInfo)
 }
 
 // 重置搜索
@@ -335,37 +375,43 @@ const resetSearch = () => {
 }
 
 .form-input {
+  width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
-  font-size: 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  font-size: 16px;
+  outline: none;
   transition: border-color 0.3s;
+  background: white;
 }
 
 .form-input:focus {
-  outline: none;
-  border-color: #3498db;
+  border-color: #007cbf;
 }
 
 .search-btn {
-  background: #3498db;
-  color: white;
+  background: transparent;
+  color: #007cbf;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
+  text-decoration: underline;
   white-space: nowrap;
 }
 
 .search-btn:hover:not(:disabled) {
-  background: #2980b9;
+  background: rgba(0, 124, 191, 0.1);
+  color: #005a8b;
 }
 
 .search-btn:disabled {
-  background: #bdc3c7;
+  color: #ccc;
   cursor: not-allowed;
+  text-decoration: none;
 }
 
 .results-section {
@@ -419,22 +465,22 @@ const resetSearch = () => {
 
 .spot-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 20px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   transition: transform 0.3s, box-shadow 0.3s;
   position: relative;
-  border: 2px solid transparent;
+  border: 1px solid #e9ecef;
 }
 
 .spot-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .spot-card.best-option {
   border-color: #f39c12;
-  background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+  background: #fff9e6;
 }
 
 .spot-header {
@@ -454,15 +500,15 @@ const resetSearch = () => {
   background: #e8f4fd;
   color: #3498db;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: 2px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .restriction-badge {
-  padding: 8px 12px;
-  border-radius: 20px;
-  font-weight: bold;
+  padding: 6px 10px;
+  border-radius: 2px;
+  font-weight: 500;
   font-size: 14px;
   color: white;
 }
@@ -537,48 +583,39 @@ const resetSearch = () => {
 
 .spot-actions {
   display: flex;
-  gap: 10px;
-}
-
-.select-btn, .map-btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.select-btn {
-  background: #27ae60;
-  color: white;
-}
-
-.select-btn:hover {
-  background: #229954;
+  justify-content: center;
+  margin-top: 15px;
 }
 
 .map-btn {
-  background: #ecf0f1;
-  color: #2c3e50;
+  background: transparent;
+  color: #007cbf;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 0;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: underline;
+  font-size: 14px;
 }
 
 .map-btn:hover {
-  background: #d5dbdb;
+  background: rgba(0, 124, 191, 0.1);
+  color: #005a8b;
 }
 
 .best-option-badge {
   position: absolute;
-  top: -10px;
-  right: -10px;
+  top: -8px;
+  right: -8px;
   background: #f39c12;
   color: white;
-  padding: 8px 12px;
-  border-radius: 20px;
+  padding: 6px 10px;
+  border-radius: 2px;
   font-size: 12px;
-  font-weight: bold;
-  box-shadow: 0 2px 10px rgba(243, 156, 18, 0.3);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(243, 156, 18, 0.3);
 }
 
 .no-results {
@@ -608,13 +645,21 @@ const resetSearch = () => {
 }
 
 .reset-btn {
-  background: #3498db;
-  color: white;
+  background: transparent;
+  color: #007cbf;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: underline;
+}
+
+.reset-btn:hover {
+  background: rgba(0, 124, 191, 0.1);
+  color: #005a8b;
 }
 
 .loading-section {
@@ -637,116 +682,6 @@ const resetSearch = () => {
   100% { transform: rotate(360deg); }
 }
 
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e1e8ed;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #2c3e50;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #7f8c8d;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.selected-spot-info h4 {
-  color: #2c3e50;
-  margin-bottom: 10px;
-}
-
-.spot-location {
-  color: #7f8c8d;
-  margin-bottom: 20px;
-}
-
-.restriction-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.restriction-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #e1e8ed;
-}
-
-.restriction-item:last-child {
-  border-bottom: none;
-}
-
-.restriction-label {
-  font-weight: 600;
-  color: #7f8c8d;
-}
-
-.restriction-value {
-  color: #2c3e50;
-  font-weight: 500;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 10px;
-  padding: 20px;
-  border-top: 1px solid #e1e8ed;
-  justify-content: flex-end;
-}
-
-.cancel-btn, .confirm-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.cancel-btn {
-  background: #ecf0f1;
-  color: #2c3e50;
-}
-
-.confirm-btn {
-  background: #3498db;
-  color: white;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .search-form {
@@ -762,11 +697,6 @@ const resetSearch = () => {
   
   .spot-actions {
     flex-direction: column;
-  }
-  
-  .modal-content {
-    width: 95%;
-    margin: 20px;
   }
 }
 </style>

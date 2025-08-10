@@ -184,8 +184,9 @@ const getVehiclesPerCapita = () => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  background: #f5f5f5;
-  min-height: 100vh;
+  background: #f8f9fa;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .dashboard-header {
@@ -195,6 +196,7 @@ const getVehiclesPerCapita = () => {
 .dashboard-header h2 {
   color: #2c3e50;
   font-size: 24px;
+  font-weight: 600;
 }
 
 .stats-grid {
@@ -207,19 +209,21 @@ const getVehiclesPerCapita = () => {
 .stat-card {
   background: white;
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e9ecef;
 }
 
 .stat-card h3 {
   margin: 0 0 10px 0;
-  color: #666;
+  color: #6c757d;
   font-size: 0.9em;
+  font-weight: 500;
 }
 
 .stat-value {
   font-size: 1.8em;
-  font-weight: bold;
+  font-weight: 600;
   color: #2c3e50;
 }
 
@@ -233,37 +237,40 @@ const getVehiclesPerCapita = () => {
 .chart-card {
   background: white;
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   height: 400px;
+  border: 1px solid #e9ecef;
 }
 
 .chart-card h3 {
   margin-bottom: 15px;
   color: #2c3e50;
+  font-weight: 600;
 }
 
 .stat-change {
   font-size: 0.9em;
   margin-top: 5px;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: 4px;
   display: inline-block;
+  font-weight: 500;
 }
 
 .stat-change.positive {
-  background: #e3fcef;
-  color: #0a7c42;
+  background: #d1ecf1;
+  color: #0c5460;
 }
 
 .stat-change.negative {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .stat-change.neutral {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #e2e3e5;
+  color: #383d41;
 }
 
 @media (max-width: 768px) {

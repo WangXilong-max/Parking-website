@@ -245,10 +245,10 @@ export class ParkingService {
     return {
       id: record.sensor_id || record.kerbsideid || record.bay_id || `spot_${Math.random().toString(36).substr(2, 9)}`,
       external_id: record.sensor_id || record.kerbsideid || record.bay_id,
-      name: record.street_name || `停车位 ${record.zone_number || record.bay_id || 'Unknown'}`,
+      name: record.street_name || `Parking Lot ${record.zone_number || record.bay_id || 'Unknown'}`,
       latitude: parseFloat(lat),
       longitude: parseFloat(lng),
-      street_name: record.street_name || 'Unknown Street',
+      street_name: record.street_name || `Parking Lot ${record.zone_number || record.bay_id || 'Unknown'}`,
       zone_number: record.zone_number,
       status: status,
       parking_type: 'On-street',
@@ -283,10 +283,10 @@ export class ParkingService {
     return {
       id: props.sensor_id || props.bay_id || `geojson_${Math.random().toString(36).substr(2, 9)}`,
       external_id: props.sensor_id || props.bay_id,
-      name: props.street_name || `停车位 ${props.bay_id || 'Unknown'}`,
+      name: props.street_name || `Parking Lot ${props.bay_id || 'Unknown'}`,
       latitude: parseFloat(coords[1]), // GeoJSON格式: [lng, lat]
       longitude: parseFloat(coords[0]),
-      street_name: props.street_name || 'Unknown Street',
+      street_name: props.street_name || `Parking Lot ${props.bay_id || 'Unknown'}`,
       zone_number: props.zone_number,
       status: status,
       parking_type: 'On-street',
