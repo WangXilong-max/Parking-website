@@ -11,6 +11,7 @@ ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 ENV VITE_MAPBOX_ACCESS_TOKEN=$VITE_MAPBOX_ACCESS_TOKEN
 
 COPY . .
+COPY .env.production .env
 RUN npm run build
 
 # ---- 2) Install backend deps ----
