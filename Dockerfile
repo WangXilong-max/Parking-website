@@ -1,5 +1,5 @@
 # ---- 1) Build frontend (Vite) ----
-FROM node:20.19.0-alpine AS frontend
+FROM node:20.19.0 AS frontend
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
