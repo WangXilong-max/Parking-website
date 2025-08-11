@@ -2,21 +2,15 @@
 FROM node:20.19.0 AS frontend
 WORKDIR /app
 COPY package*.json ./
-# Clear npm cache and install dependencies with force flag to handle optional deps
-RUN npm cache clean --force
-RUN rm -rf node_modules package-lock.json
-RUN npm install --force
+# Install dependencies
+RUN npm ci
 
-# Build-time envs for Vite (support either var name)
-ARG VITE_MAPBOX_TOKEN
-ARG VITE_MAPBOX_ACCESS_TOKEN
-ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
-ENV VITE_MAPBOX_ACCESS_TOKEN=$VITE_MAPBOX_ACCESS_TOKEN
+# Build-time envs for Vite - set defaults to ensure map works
+ENV VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w
+ENV VITE_BACKEND_URL=
 
 COPY . .
-COPY .env.production .env
-# Ensure all optional dependencies are available before build
-RUN npm rebuild
+# Build frontend
 RUN npm run build
 
 # ---- 2) Install backend deps ----

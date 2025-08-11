@@ -7,8 +7,10 @@
 // 4. Replace the placeholder below with your actual token
 
 export const MAPBOX_CONFIG = {
-  // MapBox access token
-  accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w',
+  // MapBox access token - ensure it's always available
+  accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 
+               import.meta.env.VITE_MAPBOX_TOKEN || 
+               'pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w',
   
   // Map style options
   styles: {
