@@ -1,8 +1,7 @@
 <template>
   <div class="home-page">
     <header class="hero-section">
-      <h1 class="hero-title">ParkItRight</h1>
-      <p class="hero-subtitle">Smart Parking Solutions</p>
+      <h1 class="hero-title">Park With Us</h1>
     </header>
 
     <main class="main-content">
@@ -48,8 +47,8 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
             </svg>
           </div>
-          <h3 class="feature-title">Parking Info</h3>
-          <p class="feature-description">Find the best parking deals near your destination</p>
+          <h3 class="feature-title">Plan Ahead</h3>
+          <p class="feature-description">Find the best place to park near your destination</p>
           <div class="feature-action">
             <span class="action-text">Find Best Deals</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -57,6 +56,10 @@
             </svg>
           </div>
         </div>
+      </div>
+      
+      <div class="disclaimer">
+        <p class="disclaimer-text">This website provides parking insights based on publicly available open datasets, including sources such as the Australian Bureau of Statistics and the City of Melbourne Open Data Portal. The information may not be up-to-date, complete, or accurate, and is intended for general informational purposes only. Users should not rely on this site for real-time parking decisions, operational planning, or policy-making. The creators of this site accept no responsibility for any loss, inconvenience, or outcomes resulting from its use.</p>
       </div>
     </main>
   </div>
@@ -84,7 +87,6 @@ const navigateToParkingInfo = () => {
   color: white;
   font-family: 'Arial', sans-serif;
   position: relative;
-  overflow: hidden;
 }
 
 /* 更新卡片样式以配合新背景 */
@@ -162,16 +164,32 @@ const navigateToParkingInfo = () => {
   background-clip: text;
 }
 
-.hero-subtitle {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  margin-bottom: 40px;
-}
+
 
 .main-content {
   padding: 0 20px 60px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.disclaimer {
+  margin-top: 60px;
+  padding: 30px 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.disclaimer-text {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  margin: 0;
 }
 
 .features-grid {
@@ -215,9 +233,7 @@ const navigateToParkingInfo = () => {
     font-size: 2.5rem;
   }
   
-  .hero-subtitle {
-    font-size: 1rem;
-  }
+
   
   .features-grid {
     grid-template-columns: 1fr;
@@ -226,6 +242,16 @@ const navigateToParkingInfo = () => {
   
   .feature-card {
     padding: 30px 20px;
+  }
+  
+  .disclaimer {
+    margin-top: 40px;
+    padding: 20px 25px;
+    max-width: 95%;
+  }
+  
+  .disclaimer-text {
+    font-size: 0.8rem;
   }
 }
 
@@ -240,6 +266,15 @@ const navigateToParkingInfo = () => {
   
   .main-content {
     padding: 0 15px 40px;
+  }
+  
+  .disclaimer {
+    margin-top: 30px;
+    padding: 15px 20px;
+  }
+  
+  .disclaimer-text {
+    font-size: 0.75rem;
   }
 }
 </style>

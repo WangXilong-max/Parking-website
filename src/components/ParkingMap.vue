@@ -741,7 +741,6 @@ const addMapEventListeners = () => {
         <p><strong>Location:</strong> ${displayName}</p>
         <p><strong>Area:</strong> ${properties.area}</p>
         <p><strong>Zone:</strong> ${properties.zone_number || 'N/A'}</p>
-        <p><strong>Restrictions:</strong> ${properties.restrictions}</p>
         ${properties.last_updated ? `<p><strong>Last Updated:</strong> ${properties.last_updated}</p>` : ''}
         <p><em>🚀 Data from Backend API</em></p>
       </div>
