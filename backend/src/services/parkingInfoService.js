@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { ParkingService } from './parkingService.js'
 import { calculateDistance } from '../utils/common.js'
 import { MELBOURNE_COORDINATES } from '../constants/app.js'
+import process from 'process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -173,90 +174,48 @@ export class ParkingInfoService {
       console.log(`Retrieved ${result.spots.length} parking spots`)
       console.log('Number of ParkingZones in CSV:', this.parkingZones.size)
       
-      // Detailed debugging: show complete information for first 10 parking spots
-      const sampleSpots = result.spots.slice(0, 10)
-      console.log('=== Real-time Data Sample ===')
-      sampleSpots.forEach((spot, index) => {
-        console.log(`${index + 1}. ${spot.street_name}: zone_number=${spot.zone_number} (type: ${typeof spot.zone_number})`)
-        // Show all possible fields
-        console.log(`   Complete data:`, {
-          bay_id: spot.bay_id,
-          sensor_id: spot.sensor_id,
-          zone_number: spot.zone_number,
-          street_name: spot.street_name,
-          status: spot.status
-        })
-      })
-      
-      // Show first 10 ParkingZones in CSV
-      const csvZones = Array.from(this.parkingZones.keys()).slice(0, 10)
-      console.log('=== CSV ParkingZone Sample ===')
-      csvZones.forEach((zone, index) => {
-        console.log(`${index + 1}. ${zone} (type: ${typeof zone})`)
-      })
+      // Calculate distance for all parking spots and return those within the search radius
+      const spotsWithDistance = result.spots.map((spot, index) => {
+        const distance = calculateDistance(
+          searchLat,
+          searchLng,
+          spot.latitude,
+          spot.longitude
+        ) * 1000 // Convert to meters
 
-      // Check all parking spots with zone_number
-      const spotsWithZone = result.spots.filter(spot => spot.zone_number)
-      console.log(`Number of spots with zone_number: ${spotsWithZone.length}`)
-      
-      // Check matching status
-      let matchCount = 0
-      const matchedSpots = []
-      
-      spotsWithZone.forEach(spot => {
-        const zoneStr = spot.zone_number.toString()
-        if (this.parkingZones.has(zoneStr)) {
-          matchCount++
-          matchedSpots.push(spot)
-          console.log(`✅ Match successful: ${spot.street_name} (zone_number: ${spot.zone_number})`)
-        } else {
-          console.log(`❌ No match: ${spot.street_name} (zone_number: ${spot.zone_number})`)
+        return {
+          id: spot.bay_id || spot.sensor_id || `spot_${index + 1}`,
+          parking_zone_id: spot.zone_number ? spot.zone_number.toString() : null,
+          street_name: spot.street_name || 'Unknown Street',
+          location: spot.street_name || 'Unknown Location',
+          distance: Math.round(distance), // Round to integer
+          status: spot.status,
+          latitude: spot.latitude,
+          longitude: spot.longitude
         }
       })
-      
-      console.log(`Total matches: ${matchCount}/${spotsWithZone.length}`)
 
-      // If matched parking spots found, calculate distance and filter within specified radius
-      if (matchedSpots.length > 0) {
-        const spotsWithDistance = matchedSpots.map((spot, index) => {
-          // Calculate real distance
-          const distance = calculateDistance(
-            searchLat, searchLng,
-            spot.latitude, spot.longitude
-          ) * 1000 // Convert to meters
-          
-          return {
-            id: spot.bay_id || spot.sensor_id || `spot_${index + 1}`,
-            parking_zone_id: spot.zone_number.toString(),
-            street_name: spot.street_name || 'Unknown Street',
-            location: spot.street_name || 'Unknown Location',
-            distance: Math.round(distance), // Round to integer
-            status: spot.status,
-            latitude: spot.latitude,
-            longitude: spot.longitude
-          }
-        })
-        
-        // Filter spots within the specified radius (default 300m)
-        const nearbySpots = spotsWithDistance.filter(spot => spot.distance <= radius)
-        
-        console.log(`Filtered ${nearbySpots.length}/${spotsWithDistance.length} parking spots within ${radius}m radius`)
-        console.log(`Search coordinates: ${searchLat}, ${searchLng}`)
-        
-        if (nearbySpots.length === 0) {
-          console.log('No spots found within radius, showing sample distances:')
-          const sampleDistances = spotsWithDistance.slice(0, 5).map(spot => 
-            `${spot.street_name}: ${spot.distance}m`
-          )
-          console.log(sampleDistances)
-        }
-        
-        return nearbySpots
-      } else {
-        // If no matches, return empty array
-        console.log('No matched parking spots found')
-        return []
+      // Filter spots within the specified radius (default 300m)
+      const nearbySpots = spotsWithDistance.filter(spot => spot.distance <= radius)
+
+      console.log(`Filtered ${nearbySpots.length}/${spotsWithDistance.length} parking spots within ${radius}m radius`)
+      console.log(`Search coordinates: ${searchLat}, ${searchLng}`)
+
+      if (nearbySpots.length === 0) {
+        console.log('No spots found within radius, showing sample distances:')
+        const sampleDistances = spotsWithDistance.slice(0, 5).map(spot =>
+          `${spot.street_name}: ${spot.distance}m`
+        )
+        console.log(sampleDistances)
       }
+
+      // Log how many of the nearby spots have matching zone information
+      const matchedCount = nearbySpots.filter(
+        spot => spot.parking_zone_id && this.parkingZones.has(spot.parking_zone_id)
+      ).length
+      console.log(`Matched ${matchedCount}/${nearbySpots.length} spots with parking zone data`)
+
+      return nearbySpots
     } catch (error) {
       console.error('Failed to retrieve real parking data:', error)
       throw error
