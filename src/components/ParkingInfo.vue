@@ -319,35 +319,41 @@ const resetSearch = () => {
 
 <style scoped>
 .parking-info-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 40px 24px 40px 24px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  height: 100vh;
-  overflow-y: auto;
+  margin-top: 60px;
+  box-sizing: border-box;
+  background: #fafafa;
+  color: #1f2937;
 }
 
 .info-header {
-  text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .info-header h2 {
-  color: #2c3e50;
-  margin-bottom: 10px;
+  color: #1f2937;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
 }
 
 .info-header p {
-  color: #7f8c8d;
-  font-size: 16px;
+  color: #6b7280;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .search-section {
-  background: #f8f9fa;
-  padding: 25px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  padding: 24px;
+  margin-bottom: 20px;
 }
 
 .search-form {
@@ -371,11 +377,11 @@ const resetSearch = () => {
 .form-input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 0;
-  font-size: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
   outline: none;
-  transition: border-color 0.3s;
+  transition: border-color 0.2s;
   background: white;
 }
 
@@ -384,22 +390,23 @@ const resetSearch = () => {
 }
 
 .search-btn {
-  background: transparent;
-  color: #007cbf;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 0;
-  font-size: 16px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
-  text-decoration: underline;
+  transition: all 0.2s;
+  text-decoration: none;
   white-space: nowrap;
 }
 
 .search-btn:hover:not(:disabled) {
-  background: rgba(0, 124, 191, 0.1);
-  color: #005a8b;
+  background: #e5e7eb;
+  color: #1f2937;
+  border-color: #d1d5db;
 }
 
 .search-btn:disabled {
@@ -409,7 +416,7 @@ const resetSearch = () => {
 }
 
 .results-section {
-  margin-top: 30px;
+  margin-top: 24px;
 }
 
 .results-header {
@@ -459,12 +466,13 @@ const resetSearch = () => {
 
 .spot-card {
   background: white;
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: transform 0.3s, box-shadow 0.3s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
-  border: 1px solid #e9ecef;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 16px;
 }
 
 .spot-card:hover {

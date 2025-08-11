@@ -82,6 +82,8 @@ const navigateToParkingInfo = () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
 .home-page {
   min-height: 100vh;
   color: white;
@@ -145,25 +147,42 @@ const navigateToParkingInfo = () => {
 /* 更新标题样式 */
 .hero-section {
   text-align: center;
-  padding: 80px 20px 40px;
+  padding: 60px 20px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 50vh;
+  min-height: 30vh;
 }
 
 .hero-title {
-  font-size: 3.5rem;
-  font-weight: bold;
-  margin-bottom: 16px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  background: linear-gradient(45deg, #fff, #f0f0f0);
+  font-family: 'Orbitron', monospace;
+  font-size: 4rem;
+  font-weight: 900;
+  margin-bottom: 30px;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.8),
+    0 0 20px rgba(255, 255, 255, 0.6),
+    0 0 30px rgba(255, 255, 255, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #ffffff, #e0e0e0, #ffffff, #f5f5f5);
+  background-size: 400% 400%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
+  letter-spacing: 2px;
+  transform: perspective(500px) rotateX(15deg);
 }
 
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
 
 
 .main-content {
@@ -230,7 +249,9 @@ const navigateToParkingInfo = () => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .hero-title {
-    font-size: 2.5rem;
+    font-size: 3rem;
+    letter-spacing: 1px;
+    margin-bottom: 25px;
   }
   
 
@@ -257,11 +278,14 @@ const navigateToParkingInfo = () => {
 
 @media (max-width: 480px) {
   .hero-section {
-    padding: 60px 20px 40px;
+    padding: 40px 20px 20px;
   }
   
   .hero-title {
-    font-size: 2rem;
+    font-size: 2.2rem;
+    letter-spacing: 0.5px;
+    margin-bottom: 20px;
+    transform: perspective(300px) rotateX(10deg);
   }
   
   .main-content {

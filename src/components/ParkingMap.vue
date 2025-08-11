@@ -920,18 +920,21 @@ const updateParkingCounts = () => {
 
 .map-header {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
+  top: 80px;
+  left: 20px;
+  right: 20px;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 15px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  backdrop-filter: blur(5px);
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .search-container {
@@ -960,32 +963,36 @@ const updateParkingCounts = () => {
 }
 
 .search-btn, .reset-btn, .refresh-btn {
-  background: transparent;
-  color: #007cbf;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 0;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 10px 16px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s;
+  transition: all 0.2s;
   white-space: nowrap;
-  text-decoration: underline;
+  text-decoration: none;
   font-weight: 500;
   position: relative;
 }
 
 .search-btn:hover:not(:disabled), .refresh-btn:hover:not(:disabled) {
-  background: rgba(0, 124, 191, 0.1);
-  color: #005a8b;
+  background: #e5e7eb;
+  color: #1f2937;
+  border-color: #d1d5db;
 }
 
 .reset-btn {
-  color: #28a745;
+  background: #f3f4f6;
+  color: #059669;
+  border-color: #d1fae5;
 }
 
 .reset-btn:hover {
-  background: rgba(40, 167, 69, 0.1);
-  color: #218838;
+  background: #d1fae5;
+  color: #047857;
+  border-color: #a7f3d0;
 }
 
 .search-btn:disabled, .refresh-btn:disabled {
@@ -1003,41 +1010,44 @@ const updateParkingCounts = () => {
 }
 
 .type-btn {
-  background: transparent;
-  color: #495057;
-  border: none;
+  background: #f9fafb;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
   padding: 8px 16px;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
-  text-decoration: underline;
+  text-decoration: none;
   position: relative;
 }
 
 .type-btn:hover {
-  background: rgba(73, 80, 87, 0.1);
-  color: #343a40;
+  background: #e5e7eb;
+  color: #374151;
+  border-color: #d1d5db;
 }
 
 .type-btn.active {
-  background: rgba(0, 124, 191, 0.1);
-  color: #007cbf;
-  text-decoration: none;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
   font-weight: 600;
 }
 
 .type-btn.active:hover {
-  background: rgba(0, 124, 191, 0.15);
-  color: #005a8b;
+  background: #bfdbfe;
+  color: #1e40af;
+  border-color: #93c5fd;
 }
 
 .map-header h2 {
-  margin: 0;
-  color: #333;
-  font-size: 1.5rem;
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 22px;
+  font-weight: 700;
 }
 
 .controls {

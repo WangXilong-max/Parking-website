@@ -105,8 +105,7 @@ body {
 
 #app {
   width: 100%;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -180,9 +179,8 @@ body {
   opacity: 0;
 }
 
-/* 确保地图和仪表板组件在导航栏下方正确显示 */
-.ParkingMap.with-nav,
-.DashboardView.with-nav {
+/* 确保地图组件在导航栏下方正确显示 */
+.ParkingMap.with-nav {
   height: calc(100vh - 60px);
   margin-top: 60px;
 }
