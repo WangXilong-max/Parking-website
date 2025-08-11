@@ -139,6 +139,34 @@ const searchParkingSpots = async () => {
           searchLat = lat
           searchLng = lng
           console.log(`ParkingInfo: Geocoded "${destination.value}" to coordinates: ${lat}, ${lng}`)
+          console.log(`ParkingInfo: Resolved to address: ${geocodeData.features[0].place_name}`)
+          
+          // 检查地址解析是否准确
+          const resolvedAddress = geocodeData.features[0].place_name.toLowerCase()
+          const searchTerm = destination.value.toLowerCase()
+          
+          // 如果搜索Collins St但解析结果不包含Collins，尝试其他strategies
+          if (searchTerm.includes('collins') && !resolvedAddress.includes('collins')) {
+            console.log(`⚠️ ParkingInfo: Address mismatch detected. Searching for: "${destination.value}", got: "${geocodeData.features[0].place_name}"`)
+            
+            // 尝试使用Collins Street的中心坐标
+            if (searchTerm.includes('collins')) {
+              searchLat = -37.8168
+              searchLng = 144.9663
+              console.log(`🔧 ParkingInfo: Using Collins Street center coordinates: ${searchLat}, ${searchLng}`)
+            }
+          }
+          
+          // 如果搜索Elizabeth St但解析结果不包含Elizabeth，使用Elizabeth St中心坐标
+          if (searchTerm.includes('elizabeth') && !resolvedAddress.includes('elizabeth')) {
+            console.log(`⚠️ ParkingInfo: Address mismatch detected. Searching for: "${destination.value}", got: "${geocodeData.features[0].place_name}"`)
+            
+            if (searchTerm.includes('elizabeth')) {
+              searchLat = -37.8114
+              searchLng = 144.9957
+              console.log(`🔧 ParkingInfo: Using Elizabeth Street center coordinates: ${searchLat}, ${searchLng}`)
+            }
+          }
         } else {
           console.log(`ParkingInfo: No geocoding results for "${destination.value}", using default coordinates`)
         }

@@ -133,6 +133,25 @@ export class ParkingInfoService {
               searchLat = lat
               searchLng = lng
               console.log(`Backend geocoding successful: "${location}" -> ${lat}, ${lng}`)
+              console.log(`Backend resolved address: ${geocodeData.features[0].place_name}`)
+              
+              // 检查地址解析准确性并应用修正
+              const resolvedAddress = geocodeData.features[0].place_name.toLowerCase()
+              const searchTerm = location.toLowerCase()
+              
+              // Collins Street地址修正
+              if (searchTerm.includes('collins') && !resolvedAddress.includes('collins')) {
+                console.log(`⚠️ Backend: Collins Street mismatch detected, using Collins Street center`)
+                searchLat = -37.8168
+                searchLng = 144.9663
+              }
+              
+              // Elizabeth Street地址修正
+              if (searchTerm.includes('elizabeth') && !resolvedAddress.includes('elizabeth')) {
+                console.log(`⚠️ Backend: Elizabeth Street mismatch detected, using Elizabeth Street center`)
+                searchLat = -37.8114
+                searchLng = 144.9957
+              }
             } else {
               console.log(`Backend geocoding no results: "${location}", using default coordinates`)
             }
