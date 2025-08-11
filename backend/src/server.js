@@ -37,7 +37,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 /* ---------- Allowed frontend origins via env ---------- */
 /* FRONTEND_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173" */
-const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,https://*.railway.app,https://*.up.railway.app,https://*.vercel.app,https://*.netlify.app')
+const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,https://parking-website-production.up.railway.app,https://*.railway.app,https://*.up.railway.app,https://*.vercel.app,https://*.netlify.app')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);

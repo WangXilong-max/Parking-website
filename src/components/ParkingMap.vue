@@ -322,6 +322,15 @@ const addBuildingParkingLayer = () => {
 }
 
 const initializeMap = () => {
+  console.log('🗺️ Initializing map with token:', MAPBOX_CONFIG.accessToken.substring(0, 10) + '...')
+  
+  // Validate Mapbox token
+  if (!MAPBOX_CONFIG.accessToken || MAPBOX_CONFIG.accessToken === 'your-mapbox-token-here') {
+    console.error('❌ Invalid Mapbox token')
+    alert('Mapbox token 配置错误，请检查环境变量 VITE_MAPBOX_ACCESS_TOKEN')
+    return
+  }
+
   mapboxgl.accessToken = MAPBOX_CONFIG.accessToken
 
   map = new mapboxgl.Map({
@@ -333,6 +342,12 @@ const initializeMap = () => {
 
   map.addControl(new mapboxgl.NavigationControl());
   map.addControl(new mapboxgl.FullscreenControl())
+
+  // Handle map errors
+  map.on('error', (e) => {
+    console.error('❌ Map error:', e.error)
+    alert(`地图加载错误: ${e.error.message}\n\n请检查:\n1. Mapbox token是否有效\n2. 网络连接是否正常`)
+  })
 
   map.on('load', () => {
     console.log('Map loaded')
@@ -576,7 +591,21 @@ const searchLocation = async () => {
     }
   } catch (error) {
     console.error('Search failed:', error)
-    alert('Search failed. Please try again.')
+    console.error('搜索错误详情:')
+    console.error('  - 搜索词:', searchQuery.value)
+    console.error('  - Mapbox token:', MAPBOX_CONFIG.accessToken.substring(0, 10) + '...')
+    console.error('  - 错误类型:', error.name)
+    console.error('  - 错误消息:', error.message)
+    
+    let errorMessage = '搜索失败，请检查网络连接或稍后重试'
+    
+    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      errorMessage = 'Mapbox API 认证失败，请检查 token 是否有效'
+    } else if (error.message.includes('network') || error.name === 'TypeError') {
+      errorMessage = '网络连接失败，请检查网络状态'
+    }
+    
+    alert(errorMessage)
   } finally {
     searching.value = false
   }
