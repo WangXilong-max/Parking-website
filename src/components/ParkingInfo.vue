@@ -177,8 +177,17 @@ const searchParkingSpots = async () => {
       console.log(`ParkingInfo: Geocoding error for "${destination.value}":`, error)
     }
 
-    // Get parking spot data - 使用与ParkingMap相同的API端点
-    const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking`)
+    // 使用专用的parking info API端点
+    const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        location: destination.value,
+        radius: 300 // 固定300米搜索半径
+      })
+    })
 
     if (!response.ok) {
       throw new Error('Search failed')
@@ -189,89 +198,23 @@ const searchParkingSpots = async () => {
     console.log('ParkingInfo: API Response:', {
       success: data.success,
       dataLength: data.data?.length || 0,
-      dataExists: !!data.data
+      dataExists: !!data.data,
+      message: data.message
     })
     
     if (data.success && data.data && data.data.length > 0) {
-      console.log('ParkingInfo: Received parking spots:', data.data.length)
-      console.log(`ParkingInfo: Using search coordinates: ${searchLat}, ${searchLng}`)
+      console.log('ParkingInfo: Received parking spots with pricing info:', data.data.length)
       
-      // 获取收费信息数据，与后端同步
-      let parkingZones = new Map()
-      try {
-        const zonesResponse = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/rates`)
-        if (zonesResponse.ok) {
-          const zonesData = await zonesResponse.json()
-          if (zonesData.success && zonesData.data) {
-            zonesData.data.forEach(zone => {
-              parkingZones.set(zone.parking_zone_id, zone)
-            })
-            console.log(`ParkingInfo: Loaded ${parkingZones.size} parking zones for pricing info`)
-          }
-        }
-      } catch (error) {
-        console.log('ParkingInfo: Failed to load parking zones:', error)
-      }
+      // 后端已经处理了距离过滤和定价信息匹配，前端只需要排序和显示
+      const enrichedSpots = data.data
       
-      // Use frontend distance calculation to filter spots within 300m
-      const nearbySpots = data.data.filter(spot => {
-        if (!spot.latitude || !spot.longitude) return false
-        
-        const distance = calculateDistance(
-          searchLat, searchLng,
-          parseFloat(spot.latitude), parseFloat(spot.longitude)
-        ) * 1000 // Convert to meters
-        
-        // Update distance to frontend calculated distance
-        spot.distance = Math.round(distance)
-        
-        // 只显示300米范围内的停车位，与ParkingMap保持一致
-        const withinRadius = distance <= DISTANCE.SEARCH_RADIUS
-        
-        if (withinRadius) {
-          // 添加收费信息
-          if (spot.zone_number && parkingZones.has(spot.zone_number.toString())) {
-            const zoneInfo = parkingZones.get(spot.zone_number.toString())
-            spot.restriction_display = zoneInfo.restriction_display || 'No pricing info'
-            spot.restriction_days = zoneInfo.restriction_days || 'Daily'
-            spot.time_restriction_start = zoneInfo.time_restriction_start || ''
-            spot.time_restriction_finish = zoneInfo.time_restriction_finish || ''
-          } else {
-            spot.restriction_display = 'No pricing info'
-          }
-          
-          return true
-        }
-        
-        return false
-      })
+      console.log(`ParkingInfo: Found ${enrichedSpots.length} spots with pricing information`)
       
-      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within ${DISTANCE.SEARCH_RADIUS}m (same as ParkingMap filtering)`)
-      
-      if (nearbySpots.length === 0) {
-        console.warn('ParkingInfo: ⚠️ No spots found within 300m radius!')
-        console.log('Debug info:')
-        console.log(`- Search coordinates: ${searchLat}, ${searchLng}`)
-        console.log(`- Total spots received: ${data.data.length}`)
-        console.log(`- Search radius: ${DISTANCE.SEARCH_RADIUS}m`)
-        
-        // 显示前5个停车位的距离
-        const sampleDistances = data.data.slice(0, 5).map(spot => {
-          if (!spot.latitude || !spot.longitude) return { name: spot.street_name, distance: 'No coordinates' }
-          const distance = calculateDistance(
-            searchLat, searchLng,
-            parseFloat(spot.latitude), parseFloat(spot.longitude)
-          ) * 1000
-          return { name: spot.street_name, distance: Math.round(distance) + 'm' }
-        })
-        console.log('- Sample distances:', sampleDistances)
-      }
-      
-      // Sort by value (within search radius range)
-      nearbySpots.sort((a, b) => {
+      // Sort by value (优先有收费信息的，然后按距离排序)
+      enrichedSpots.sort((a, b) => {
         // 优先显示有收费信息的停车位
-        const aHasInfo = a.restriction_display && a.restriction_display !== 'No pricing info'
-        const bHasInfo = b.restriction_display && b.restriction_display !== 'No pricing info'
+        const aHasInfo = a.restriction_display && a.restriction_display !== 'Unknown'
+        const bHasInfo = b.restriction_display && b.restriction_display !== 'Unknown'
         
         if (aHasInfo && !bHasInfo) return -1
         if (!aHasInfo && bHasInfo) return 1
@@ -290,14 +233,15 @@ const searchParkingSpots = async () => {
         return a.distance - b.distance
       })
       
-      parkingSpots.value = nearbySpots
+      parkingSpots.value = enrichedSpots
       
-      // Display complete data structure of first parking spot
+      // 显示第一个停车位的完整数据结构
       if (parkingSpots.value.length > 0) {
         console.log('ParkingInfo: First spot structure:', parkingSpots.value[0])
       }
     } else {
       parkingSpots.value = []
+      console.log('ParkingInfo: No parking spots found or API returned empty data')
     }
 
   } catch (error) {

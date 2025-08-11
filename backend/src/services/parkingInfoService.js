@@ -216,7 +216,7 @@ export class ParkingInfoService {
       
       console.log(`Total matches: ${matchCount}/${spotsWithZone.length}`)
 
-      // If matched parking spots found, calculate distance first, then filter within 300m range
+      // If matched parking spots found, calculate distance and filter within specified radius
       if (matchedSpots.length > 0) {
         const spotsWithDistance = matchedSpots.map((spot, index) => {
           // Calculate real distance
@@ -237,9 +237,21 @@ export class ParkingInfoService {
           }
         })
         
-        // Return all matched parking spots, let frontend handle distance filtering
-        console.log(`Returning ${spotsWithDistance.length} matched parking spots, frontend will filter within 300m range`)
-        return spotsWithDistance
+        // Filter spots within the specified radius (default 300m)
+        const nearbySpots = spotsWithDistance.filter(spot => spot.distance <= radius)
+        
+        console.log(`Filtered ${nearbySpots.length}/${spotsWithDistance.length} parking spots within ${radius}m radius`)
+        console.log(`Search coordinates: ${searchLat}, ${searchLng}`)
+        
+        if (nearbySpots.length === 0) {
+          console.log('No spots found within radius, showing sample distances:')
+          const sampleDistances = spotsWithDistance.slice(0, 5).map(spot => 
+            `${spot.street_name}: ${spot.distance}m`
+          )
+          console.log(sampleDistances)
+        }
+        
+        return nearbySpots
       } else {
         // If no matches, return empty array
         console.log('No matched parking spots found')
