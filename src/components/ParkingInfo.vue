@@ -186,7 +186,13 @@ const searchParkingSpots = async () => {
 
     const data = await response.json()
     
-    if (data.success && data.data.length > 0) {
+    console.log('ParkingInfo: API Response:', {
+      success: data.success,
+      dataLength: data.data?.length || 0,
+      dataExists: !!data.data
+    })
+    
+    if (data.success && data.data && data.data.length > 0) {
       console.log('ParkingInfo: Received parking spots:', data.data.length)
       console.log(`ParkingInfo: Using search coordinates: ${searchLat}, ${searchLng}`)
       
@@ -241,6 +247,25 @@ const searchParkingSpots = async () => {
       })
       
       console.log(`ParkingInfo: Found ${nearbySpots.length} spots within ${DISTANCE.SEARCH_RADIUS}m (same as ParkingMap filtering)`)
+      
+      if (nearbySpots.length === 0) {
+        console.warn('ParkingInfo: ⚠️ No spots found within 300m radius!')
+        console.log('Debug info:')
+        console.log(`- Search coordinates: ${searchLat}, ${searchLng}`)
+        console.log(`- Total spots received: ${data.data.length}`)
+        console.log(`- Search radius: ${DISTANCE.SEARCH_RADIUS}m`)
+        
+        // 显示前5个停车位的距离
+        const sampleDistances = data.data.slice(0, 5).map(spot => {
+          if (!spot.latitude || !spot.longitude) return { name: spot.street_name, distance: 'No coordinates' }
+          const distance = calculateDistance(
+            searchLat, searchLng,
+            parseFloat(spot.latitude), parseFloat(spot.longitude)
+          ) * 1000
+          return { name: spot.street_name, distance: Math.round(distance) + 'm' }
+        })
+        console.log('- Sample distances:', sampleDistances)
+      }
       
       // Sort by value (within search radius range)
       nearbySpots.sort((a, b) => {
