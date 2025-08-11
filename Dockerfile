@@ -2,8 +2,9 @@
 FROM node:20.19.0 AS frontend
 WORKDIR /app
 COPY package*.json ./
-# Install dependencies
-RUN npm ci
+# Install dependencies and fix Rollup for Linux
+RUN npm ci --omit=optional || npm install --force
+RUN npm install @rollup/rollup-linux-x64-gnu --no-save --ignore-engines
 
 # Build-time envs for Vite - set defaults to ensure map works
 ENV VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1Ijoid3hsMTIzNzg5IiwiYSI6ImNtZHlid2h1bDAwYmEya3BzMmpvbGFzb2UifQ.PNnx74NZhnHUfa5d1Q_c3w
