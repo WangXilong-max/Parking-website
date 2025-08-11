@@ -16,7 +16,9 @@
     "build:frontend": "vite build",
     "start:backend": "cd backend && node src/server.js",
     "start": "node start.js",
-    "dev:full": "concurrently \"npm run dev\" \"cd backend && npm run dev\""
+    "dev:full": "concurrently \"npm run dev\" \"cd backend && npm run dev\"",
+    "test:deployment": "node test-deployment.js",
+    "test:prod": "node test-deployment.js https://your-app.railway.app"
   },
   "dependencies": {
     "chart.js": "^4.5.0",

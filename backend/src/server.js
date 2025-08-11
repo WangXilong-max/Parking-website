@@ -37,7 +37,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 /* ---------- Allowed frontend origins via env ---------- */
 /* FRONTEND_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173" */
-const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173')
+const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,https://*.railway.app,https://*.up.railway.app,https://*.vercel.app,https://*.netlify.app')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -104,8 +104,25 @@ app.get('/api', (_req, res) => {
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) return cb(null, true); // server-to-server, curl, same-origin
-    if (origin.startsWith('http://localhost:')) return cb(null, true);
+    if (origin && origin.startsWith('http://localhost:')) return cb(null, true);
+    
+    // Check for exact matches
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    
+    // Check for wildcard domain matches
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        // Convert wildcard pattern to regex
+        const pattern = allowed.replace(/\*/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) return cb(null, true);
+    
+    console.log(`⚠️ CORS blocked for origin: ${origin}`);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,

@@ -122,7 +122,12 @@ const parkingTypeFilter = ref('all') // Parking type filter: 'all', 'street', 'b
 // Backend API configuration - dynamically obtained
 const BACKEND_URL = BACKEND_CONFIG.baseURL
 
-console.log('🌐 Connecting to backend:', BACKEND_URL)
+console.log('🌐 Environment debug info:')
+console.log('  - Mode:', import.meta.env.MODE)
+console.log('  - Prod:', import.meta.env.PROD)
+console.log('  - VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL)
+console.log('  - Window origin:', window.location.origin)
+console.log('  - Final backend URL:', BACKEND_URL)
 
 onMounted(() => {
   initializeMap()
@@ -463,8 +468,20 @@ const loadParkingData = async () => {
     console.error('❌ Failed to load parking data:', error)
     dataSource.value = `❌ Error: ${error.message}`
 
-    // Show user-friendly error
-    alert(`Failed to load data: ${error.message}\n\nPlease ensure backend server is running at ${BACKEND_URL}`)
+    // More detailed error information for debugging
+    console.error('🔧 Debug info:')
+    console.error('  - Backend URL:', BACKEND_URL)
+    console.error('  - Full request URL:', `${BACKEND_URL}/api/parking`)
+    console.error('  - Error type:', error.name)
+    console.error('  - Error message:', error.message)
+    
+    // Check if it's a network error
+    if (error.message.includes('fetch') || error.name === 'TypeError') {
+      dataSource.value = '❌ Network Error: Cannot connect to backend'
+      alert(`网络连接错误：无法连接到后端服务器\n\n请检查：\n1. 后端服务器是否正常运行\n2. URL是否正确: ${BACKEND_URL}\n3. 是否存在CORS问题\n\n当前环境: ${import.meta.env.MODE}`)
+    } else {
+      alert(`Failed to load data: ${error.message}\n\nBackend URL: ${BACKEND_URL}\nEnvironment: ${import.meta.env.MODE}`)
+    }
   } finally {
     loading.value = false
   }
