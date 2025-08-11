@@ -164,7 +164,7 @@ export class ParkingInfoService {
       }
 
       // Use existing ParkingService to get real data
-      const result = await this.parkingService.getParkingSpots({}, 1000, 0)
+      const result = await this.parkingService.getParkingSpots({}, 10000, 0)
       
       if (!result.spots || result.spots.length === 0) {
         throw new Error('No parking data retrieved')
