@@ -177,17 +177,8 @@ const searchParkingSpots = async () => {
       console.log(`ParkingInfo: Geocoding error for "${destination.value}":`, error)
     }
 
-    // Get parking spot data
-    const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        location: destination.value,
-        radius: DISTANCE.DATA_FETCH_RADIUS // Get larger range data, frontend will filter later
-      })
-    })
+    // Get parking spot data - 使用与ParkingMap相同的API端点
+    const response = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking`)
 
     if (!response.ok) {
       throw new Error('Search failed')
@@ -196,8 +187,25 @@ const searchParkingSpots = async () => {
     const data = await response.json()
     
     if (data.success && data.data.length > 0) {
-      console.log('ParkingInfo: Received parking spots:', data.data)
+      console.log('ParkingInfo: Received parking spots:', data.data.length)
       console.log(`ParkingInfo: Using search coordinates: ${searchLat}, ${searchLng}`)
+      
+      // 获取收费信息数据，与后端同步
+      let parkingZones = new Map()
+      try {
+        const zonesResponse = await fetch(`${BACKEND_CONFIG.baseURL}/api/parking-info/rates`)
+        if (zonesResponse.ok) {
+          const zonesData = await zonesResponse.json()
+          if (zonesData.success && zonesData.data) {
+            zonesData.data.forEach(zone => {
+              parkingZones.set(zone.parking_zone_id, zone)
+            })
+            console.log(`ParkingInfo: Loaded ${parkingZones.size} parking zones for pricing info`)
+          }
+        }
+      } catch (error) {
+        console.log('ParkingInfo: Failed to load parking zones:', error)
+      }
       
       // Use frontend distance calculation to filter spots within 300m
       const nearbySpots = data.data.filter(spot => {
@@ -211,26 +219,49 @@ const searchParkingSpots = async () => {
         // Update distance to frontend calculated distance
         spot.distance = Math.round(distance)
         
-        // Only return spots within search radius with specific charging restrictions
-        const hasValidRestriction = spot.restriction_display && 
-          spot.restriction_display !== 'Unknown' && 
-          spot.restriction_display !== ''
+        // 只显示300米范围内的停车位，与ParkingMap保持一致
+        const withinRadius = distance <= DISTANCE.SEARCH_RADIUS
         
-        return distance <= DISTANCE.SEARCH_RADIUS && hasValidRestriction
+        if (withinRadius) {
+          // 添加收费信息
+          if (spot.zone_number && parkingZones.has(spot.zone_number.toString())) {
+            const zoneInfo = parkingZones.get(spot.zone_number.toString())
+            spot.restriction_display = zoneInfo.restriction_display || 'No pricing info'
+            spot.restriction_days = zoneInfo.restriction_days || 'Daily'
+            spot.time_restriction_start = zoneInfo.time_restriction_start || ''
+            spot.time_restriction_finish = zoneInfo.time_restriction_finish || ''
+          } else {
+            spot.restriction_display = 'No pricing info'
+          }
+          
+          return true
+        }
+        
+        return false
       })
       
-      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within ${DISTANCE.SEARCH_RADIUS}m with valid restrictions`)
+      console.log(`ParkingInfo: Found ${nearbySpots.length} spots within ${DISTANCE.SEARCH_RADIUS}m (same as ParkingMap filtering)`)
       
       // Sort by value (within search radius range)
       nearbySpots.sort((a, b) => {
-        const orderA = RESTRICTION_ORDER[a.restriction_display] || 999
-        const orderB = RESTRICTION_ORDER[b.restriction_display] || 999
+        // 优先显示有收费信息的停车位
+        const aHasInfo = a.restriction_display && a.restriction_display !== 'No pricing info'
+        const bHasInfo = b.restriction_display && b.restriction_display !== 'No pricing info'
         
-        if (orderA !== orderB) {
-          return orderA - orderB
+        if (aHasInfo && !bHasInfo) return -1
+        if (!aHasInfo && bHasInfo) return 1
+        
+        // 如果都有收费信息，按收费类型排序
+        if (aHasInfo && bHasInfo) {
+          const orderA = RESTRICTION_ORDER[a.restriction_display] || 999
+          const orderB = RESTRICTION_ORDER[b.restriction_display] || 999
+          
+          if (orderA !== orderB) {
+            return orderA - orderB
+          }
         }
         
-        // If restrictions are the same, sort by distance
+        // 最后按距离排序
         return a.distance - b.distance
       })
       
@@ -269,7 +300,8 @@ const getRestrictionClass = (restriction) => {
     'LZ30': 'restriction-lz30',
     'QP': 'restriction-qp',
     'SP': 'restriction-sp',
-    'PP': 'restriction-pp'
+    'PP': 'restriction-pp',
+    'No pricing info': 'restriction-no-info'
   }
   return classes[restriction] || 'restriction-default'
 }
