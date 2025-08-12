@@ -323,7 +323,7 @@ const resetSearch = () => {
   margin: 0 auto;
   padding: 40px 24px 40px 24px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin-top: 60px;
+  margin-top: 65px;
   box-sizing: border-box;
   background: #fafafa;
   color: #1f2937;

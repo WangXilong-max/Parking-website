@@ -345,7 +345,7 @@ const barOptions = {
 </script>
 
 <style scoped>
-.mm-dashboard{max-width:1200px;margin:0 auto;padding:40px 24px 40px 24px;background:#fafafa;color:#1f2937;margin-top:60px;box-sizing:border-box}
+.mm-dashboard{max-width:1200px;margin:0 auto;padding:40px 24px 40px 24px;background:#fafafa;color:#1f2937;margin-top:65px;box-sizing:border-box}
 .mm-header{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;margin-bottom:24px}
 
 .mm-header h1{margin:0;font-size:22px}
