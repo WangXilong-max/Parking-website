@@ -1,4 +1,6 @@
 // backend/src/server.js
+/* eslint-env node */
+/* global process */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -11,6 +13,7 @@ import { fileURLToPath } from 'url';
 // Routes
 import parkingRoutes from './routes/parking.js';
 import parkingInfoRoutes from './routes/parkingInfo.js';
+import dashboardRoutes from './routes/dashboard.js';
 
 // Services
 import { startParkingDataSync } from './services/parkingSync.js';
@@ -95,6 +98,7 @@ app.get('/api', (_req, res) => {
       health: '/health',
       parking: '/api/parking',
       parkingInfo: '/api/parking-info',
+      dashboard: '/api/dashboard',
     },
     timestamp: new Date().toISOString(),
   });
@@ -132,6 +136,7 @@ app.use('/api', cors(corsOptions));
 /* ---------- API routes ---------- */
 app.use('/api/parking', parkingRoutes);
 app.use('/api/parking-info', parkingInfoRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 /* ---------- 404 for API only ---------- */
 app.use('/api/*', (req, res) => {
@@ -150,6 +155,7 @@ app.get('*', (_req, res) => {
 });
 
 /* ---------- Global error handler ---------- */
+/* eslint-disable-next-line no-unused-vars */
 app.use((err, _req, res, _next) => {
   console.error('❌ API error:', err);
   const status = err.status || err.statusCode || 500;

@@ -13,15 +13,15 @@
     <section class="panel summary">
       <div class="summary-metrics">
         <div class="metric">
-          <div class="metric-value positive">+3.3%</div>
+          <div class="metric-value positive">{{ formatPercent(dashboardData?.populationGrowth) }}</div>
           <div class="metric-label">Net Population Growth</div>
         </div>
         <div class="metric">
-          <div class="metric-value negative">-9.9%</div>
+          <div class="metric-value negative">{{ formatPercent(dashboardData?.vehicleChange) }}</div>
           <div class="metric-label">Vehicle Change</div>
         </div>
         <div class="metric">
-          <div class="metric-value negative">-12.6%</div>
+          <div class="metric-value negative">{{ formatPercent(dashboardData?.vehicleDensityChange) }}</div>
           <div class="metric-label">Vehicle Density Change</div>
         </div>
       </div>
@@ -194,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -235,6 +235,23 @@ const vehicleData = ref([
   { year: 2020, count: 215728 },
   { year: 2021, count: 188855 }
 ])
+
+const dashboardData = ref(null)
+
+const formatPercent = (n) => {
+  if (typeof n !== 'number') return '0%'
+  return `${n >= 0 ? '+' : ''}${n}%`
+}
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/dashboard')
+    const json = await res.json()
+    dashboardData.value = json.data
+  } catch (e) {
+    console.error('Failed to load dashboard data', e)
+  }
+})
 
 // Helper to format thousands with commas
 const fmt = (n) => new Intl.NumberFormat('en-AU').format(n)
