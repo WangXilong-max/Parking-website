@@ -18,7 +18,7 @@ RUN npm run build
 FROM node:20.19.0-alpine AS backend_deps
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # ---- 3) Runtime ----
 FROM node:20.19.0-alpine
