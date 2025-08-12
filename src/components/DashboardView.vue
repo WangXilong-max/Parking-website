@@ -13,15 +13,15 @@
     <section class="panel summary">
       <div class="summary-metrics">
         <div class="metric">
-          <div class="metric-value positive">{{ formatPercent(dashboardData?.populationGrowth) }}</div>
+          <div class="metric-value positive">+3.3%</div>
           <div class="metric-label">Net Population Growth</div>
         </div>
         <div class="metric">
-          <div class="metric-value negative">{{ formatPercent(dashboardData?.vehicleChange) }}</div>
+          <div class="metric-value negative">-9.9%</div>
           <div class="metric-label">Vehicle Change</div>
         </div>
         <div class="metric">
-          <div class="metric-value negative">{{ formatPercent(dashboardData?.vehicleDensityChange) }}</div>
+          <div class="metric-value negative">-12.6%</div>
           <div class="metric-label">Vehicle Density Change</div>
         </div>
       </div>
@@ -219,39 +219,67 @@ ChartJS.register(
   Legend
 )
 
-// ---- Data (you provided) ----
-const populationData = ref([
-  { year: 2017, population_count: 4818100 },
-  { year: 2018, population_count: 4913138 },
-  { year: 2019, population_count: 5001917 },
-  { year: 2020, population_count: 5054839 },
-  { year: 2021, population_count: 4976157 }
-])
+// ---- 数据从数据库获取 ----
+const populationData = ref([])
+const vehicleData = ref([])
+const densityData = ref([])
+const loading = ref(true)
+const error = ref(null)
 
-const vehicleData = ref([
-  { year: 2017, count: 209495 },
-  { year: 2018, count: 214408 },
-  { year: 2019, count: 236429 },
-  { year: 2020, count: 215728 },
-  { year: 2021, count: 188855 }
-])
-
-const dashboardData = ref(null)
-
-const formatPercent = (n) => {
-  if (typeof n !== 'number') return '0%'
-  return `${n >= 0 ? '+' : ''}${n}%`
+// 从API获取图表数据
+const loadChartData = async () => {
+  try {
+    loading.value = true
+    console.log('📊 Loading chart data from database...')
+    
+    const response = await fetch('/api/chart-data')
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to load chart data')
+    }
+    
+    if (result.success && result.data) {
+      populationData.value = result.data.population || []
+      vehicleData.value = result.data.vehicle || []
+      densityData.value = result.data.density || []
+      
+      console.log('✅ Chart data loaded successfully:', {
+        population: populationData.value.length,
+        vehicle: vehicleData.value.length,
+        density: densityData.value.length
+      })
+    } else {
+      throw new Error(result.error || 'No data received')
+    }
+    
+  } catch (err) {
+    console.error('❌ Failed to load chart data:', err)
+    error.value = err.message
+    
+    // 如果API失败，使用备用的硬编码数据
+    console.log('📦 Using fallback static data...')
+    populationData.value = [
+      { year: 2017, population_count: 4818100 },
+      { year: 2018, population_count: 4913138 },
+      { year: 2019, population_count: 5001917 },
+      { year: 2020, population_count: 5054839 },
+      { year: 2021, population_count: 4976157 }
+    ]
+    vehicleData.value = [
+      { year: 2017, count: 209495 },
+      { year: 2018, count: 214408 },
+      { year: 2019, count: 236429 },
+      { year: 2020, count: 215728 },
+      { year: 2021, count: 188855 }
+    ]
+  } finally {
+    loading.value = false
+  }
 }
 
-onMounted(async () => {
-  try {
-    const res = await fetch('/api/dashboard')
-    const json = await res.json()
-    dashboardData.value = json.data
-  } catch (e) {
-    console.error('Failed to load dashboard data', e)
-  }
-})
+// 组件挂载时加载数据
+onMounted(loadChartData)
 
 // Helper to format thousands with commas
 const fmt = (n) => new Intl.NumberFormat('en-AU').format(n)
@@ -299,34 +327,32 @@ const lineOptions = {
   }
 }
 
-const densityYears = [2017, 2018, 2019, 2020, 2021]
-const densityValues = [43.5, 43.2, 47.3, 41.0, 38.0]
+const densityChartData = computed(() => {
+  // 如果密度数据可用，使用API数据；否则使用备用数据
+  const densityValues = densityData.value.length > 0 
+    ? densityData.value.map(d => d.density)
+    : [43.5, 43.2, 47.3, 41.0, 38.0] // 备用数据
+    
+  const densityYears = densityData.value.length > 0
+    ? densityData.value.map(d => d.year)
+    : [2017, 2018, 2019, 2020, 2021] // 备用数据
 
-// Debug: Check if data is complete
-console.log('Density chart data:', {
-  years: densityYears,
-  values: densityValues,
-  length: densityValues.length
+  return {
+    labels: densityYears,
+    datasets: [
+      {
+        label: 'Vehicles per 1,000 people',
+        data: densityValues,
+        backgroundColor: densityValues.map((_, index) => 
+          // 2019年（通常是第3个索引）使用深绿色
+          densityYears[index] === 2019 ? '#059669' : '#10b981'
+        ),
+        borderColor: '#059669',
+        borderWidth: 1
+      }
+    ]
+  }
 })
-
-const densityChartData = computed(() => ({
-  labels: densityYears,
-  datasets: [
-    {
-      label: 'Vehicles per 1,000 people',
-      data: densityValues,
-      backgroundColor: [
-        '#10b981',
-        '#10b981', 
-        '#059669',  // 2019 peak - darker green
-        '#10b981',
-        '#10b981'
-      ],
-      borderColor: '#059669',
-      borderWidth: 1
-    }
-  ]
-}))
 
 const barOptions = {
   responsive: true,

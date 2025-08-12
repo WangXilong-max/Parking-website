@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 import parkingRoutes from './routes/parking.js';
 import parkingInfoRoutes from './routes/parkingInfo.js';
 import dashboardRoutes from './routes/dashboard.js';
+import chartDataRoutes from './routes/chartData.js';
 
 // Services
 import { startParkingDataSync } from './services/parkingSync.js';
@@ -99,6 +100,7 @@ app.get('/api', (_req, res) => {
       parking: '/api/parking',
       parkingInfo: '/api/parking-info',
       dashboard: '/api/dashboard',
+      chartData: '/api/chart-data',
     },
     timestamp: new Date().toISOString(),
   });
@@ -137,6 +139,7 @@ app.use('/api', cors(corsOptions));
 app.use('/api/parking', parkingRoutes);
 app.use('/api/parking-info', parkingInfoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/chart-data', chartDataRoutes);
 
 /* ---------- 404 for API only ---------- */
 app.use('/api/*', (req, res) => {
